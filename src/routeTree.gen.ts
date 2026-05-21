@@ -9,38 +9,180 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SummaryRouteImport } from './routes/summary'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as FavoritesRouteImport } from './routes/favorites'
+import { Route as ConfirmationRouteImport } from './routes/confirmation'
+import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VenueVenueIdRouteImport } from './routes/venue.$venueId'
+import { Route as ActivityActivityRouteImport } from './routes/activity.$activity'
+import { Route as VenueVenueIdCourtsRouteImport } from './routes/venue.$venueId.courts'
 
+const SummaryRoute = SummaryRouteImport.update({
+  id: '/summary',
+  path: '/summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FavoritesRoute = FavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmationRoute = ConfirmationRouteImport.update({
+  id: '/confirmation',
+  path: '/confirmation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsRoute = BookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VenueVenueIdRoute = VenueVenueIdRouteImport.update({
+  id: '/venue/$venueId',
+  path: '/venue/$venueId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivityActivityRoute = ActivityActivityRouteImport.update({
+  id: '/activity/$activity',
+  path: '/activity/$activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VenueVenueIdCourtsRoute = VenueVenueIdCourtsRouteImport.update({
+  id: '/courts',
+  path: '/courts',
+  getParentRoute: () => VenueVenueIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bookings': typeof BookingsRoute
+  '/confirmation': typeof ConfirmationRoute
+  '/favorites': typeof FavoritesRoute
+  '/profile': typeof ProfileRoute
+  '/summary': typeof SummaryRoute
+  '/activity/$activity': typeof ActivityActivityRoute
+  '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
+  '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bookings': typeof BookingsRoute
+  '/confirmation': typeof ConfirmationRoute
+  '/favorites': typeof FavoritesRoute
+  '/profile': typeof ProfileRoute
+  '/summary': typeof SummaryRoute
+  '/activity/$activity': typeof ActivityActivityRoute
+  '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
+  '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bookings': typeof BookingsRoute
+  '/confirmation': typeof ConfirmationRoute
+  '/favorites': typeof FavoritesRoute
+  '/profile': typeof ProfileRoute
+  '/summary': typeof SummaryRoute
+  '/activity/$activity': typeof ActivityActivityRoute
+  '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
+  '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/bookings'
+    | '/confirmation'
+    | '/favorites'
+    | '/profile'
+    | '/summary'
+    | '/activity/$activity'
+    | '/venue/$venueId'
+    | '/venue/$venueId/courts'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/bookings'
+    | '/confirmation'
+    | '/favorites'
+    | '/profile'
+    | '/summary'
+    | '/activity/$activity'
+    | '/venue/$venueId'
+    | '/venue/$venueId/courts'
+  id:
+    | '__root__'
+    | '/'
+    | '/bookings'
+    | '/confirmation'
+    | '/favorites'
+    | '/profile'
+    | '/summary'
+    | '/activity/$activity'
+    | '/venue/$venueId'
+    | '/venue/$venueId/courts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BookingsRoute: typeof BookingsRoute
+  ConfirmationRoute: typeof ConfirmationRoute
+  FavoritesRoute: typeof FavoritesRoute
+  ProfileRoute: typeof ProfileRoute
+  SummaryRoute: typeof SummaryRoute
+  ActivityActivityRoute: typeof ActivityActivityRoute
+  VenueVenueIdRoute: typeof VenueVenueIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/summary': {
+      id: '/summary'
+      path: '/summary'
+      fullPath: '/summary'
+      preLoaderRoute: typeof SummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/favorites': {
+      id: '/favorites'
+      path: '/favorites'
+      fullPath: '/favorites'
+      preLoaderRoute: typeof FavoritesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirmation': {
+      id: '/confirmation'
+      path: '/confirmation'
+      fullPath: '/confirmation'
+      preLoaderRoute: typeof ConfirmationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings': {
+      id: '/bookings'
+      path: '/bookings'
+      fullPath: '/bookings'
+      preLoaderRoute: typeof BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +190,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/venue/$venueId': {
+      id: '/venue/$venueId'
+      path: '/venue/$venueId'
+      fullPath: '/venue/$venueId'
+      preLoaderRoute: typeof VenueVenueIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activity/$activity': {
+      id: '/activity/$activity'
+      path: '/activity/$activity'
+      fullPath: '/activity/$activity'
+      preLoaderRoute: typeof ActivityActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/venue/$venueId/courts': {
+      id: '/venue/$venueId/courts'
+      path: '/courts'
+      fullPath: '/venue/$venueId/courts'
+      preLoaderRoute: typeof VenueVenueIdCourtsRouteImport
+      parentRoute: typeof VenueVenueIdRoute
+    }
   }
 }
 
+interface VenueVenueIdRouteChildren {
+  VenueVenueIdCourtsRoute: typeof VenueVenueIdCourtsRoute
+}
+
+const VenueVenueIdRouteChildren: VenueVenueIdRouteChildren = {
+  VenueVenueIdCourtsRoute: VenueVenueIdCourtsRoute,
+}
+
+const VenueVenueIdRouteWithChildren = VenueVenueIdRoute._addFileChildren(
+  VenueVenueIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BookingsRoute: BookingsRoute,
+  ConfirmationRoute: ConfirmationRoute,
+  FavoritesRoute: FavoritesRoute,
+  ProfileRoute: ProfileRoute,
+  SummaryRoute: SummaryRoute,
+  ActivityActivityRoute: ActivityActivityRoute,
+  VenueVenueIdRoute: VenueVenueIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
