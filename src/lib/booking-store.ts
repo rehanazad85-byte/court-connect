@@ -1,24 +1,34 @@
-// Tiny in-memory store for the demo booking flow.
-// Replace with Cloud + Supabase when wiring real persistence.
+import { useSyncExternalStore } from "react";
 
-type BookingState = {
-  venueId: string;
-  date: string; // "Sat, 24 May"
-  time: string; // "13:00"
-  durationHrs: number;
+export type BookingState = {
+  venueId: string | null;
+  venueName: string | null;
+  venueImage: string | null;
+  dateISO: string | null;           // "2026-05-23"
+  dateLabel: string | null;         // "Sat, 23 May"
+  time: string | null;              // "13:00"
+  durationMin: number;
   players: number;
-  courtIds: number[];
+  resourceIds: string[];
+  resourceLabels: string[];
+  pricePerCourtPence: number | null;
 };
 
-let state: BookingState = {
-  venueId: "padel-club",
-  date: "Sat, 24 May",
-  time: "13:00",
-  durationHrs: 2,
+const initial: BookingState = {
+  venueId: null,
+  venueName: null,
+  venueImage: null,
+  dateISO: null,
+  dateLabel: null,
+  time: null,
+  durationMin: 60,
   players: 2,
-  courtIds: [1, 2],
+  resourceIds: [],
+  resourceLabels: [],
+  pricePerCourtPence: null,
 };
 
+let state: BookingState = { ...initial };
 const listeners = new Set<() => void>();
 
 export const bookingStore = {
@@ -27,13 +37,16 @@ export const bookingStore = {
     state = { ...state, ...patch };
     listeners.forEach((l) => l());
   },
+  reset: () => {
+    state = { ...initial };
+    listeners.forEach((l) => l());
+  },
   subscribe: (fn: () => void) => {
     listeners.add(fn);
     return () => listeners.delete(fn);
   },
 };
 
-import { useSyncExternalStore } from "react";
 export function useBooking() {
   return useSyncExternalStore(
     (cb) => bookingStore.subscribe(cb),

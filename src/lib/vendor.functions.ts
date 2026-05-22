@@ -1,0 +1,150 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+const slugify = (s: string) =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+
+// Grant the current user the 'vendor' role.
+export const claimVendor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("user_roles")
+      .insert({ user_id: userId, role: "vendor" });
+    // Ignore unique violation (already a vendor)
+    if (error && !/duplicate key/i.test(error.message)) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const myRoles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { roles: (data ?? []).map((r) => r.role as string) };
+  });
+
+export const listMyVenues = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("venues")
+      .select("id, name, slug, activity, type, city, is_published, cover_image, created_at")
+      .eq("vendor_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { venues: data ?? [] };
+  });
+
+export const listVendorBookings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: venues } = await supabase
+      .from("venues")
+      .select("id, name")
+      .eq("vendor_id", userId);
+    const ids = (venues ?? []).map((v) => v.id);
+    if (ids.length === 0) return { bookings: [], venues: [] };
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("id, reference, status, starts_at, ends_at, players, total_pence, venue_id")
+      .in("venue_id", ids)
+      .order("starts_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return { bookings: data ?? [], venues: venues ?? [] };
+  });
+
+export const createVenue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    name: string; activity: string; type: "Indoor" | "Outdoor"; city?: string;
+    address?: string; description?: string; coverImage?: string;
+    resourceCount: number; resourceKind: "court" | "table" | "lane" | "sim" | "board";
+    pricePerHourPence: number; openMin: number; closeMin: number;
+  }) =>
+    z.object({
+      name: z.string().min(1).max(120),
+      activity: z.string().min(1).max(40),
+      type: z.enum(["Indoor", "Outdoor"]),
+      city: z.string().max(80).optional(),
+      address: z.string().max(200).optional(),
+      description: z.string().max(2000).optional(),
+      coverImage: z.string().url().max(500).optional(),
+      resourceCount: z.number().int().min(1).max(40),
+      resourceKind: z.enum(["court", "table", "lane", "sim", "board"]),
+      pricePerHourPence: z.number().int().min(100).max(50000),
+      openMin: z.number().int().min(0).max(1440),
+      closeMin: z.number().int().min(0).max(1440),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const slug = `${slugify(data.name)}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const { data: venue, error } = await supabase
+      .from("venues")
+      .insert({
+        vendor_id: userId,
+        slug,
+        name: data.name,
+        activity: data.activity,
+        type: data.type,
+        city: data.city ?? null,
+        address: data.address ?? null,
+        description: data.description ?? null,
+        cover_image: data.coverImage ?? null,
+        is_published: true,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+
+    const resources = Array.from({ length: data.resourceCount }, (_, i) => ({
+      venue_id: venue.id,
+      name: `${labelFor(data.resourceKind)} ${i + 1}`,
+      kind: data.resourceKind,
+      sort_order: i,
+    }));
+    const { error: re } = await supabase.from("resources").insert(resources);
+    if (re) throw new Error(re.message);
+
+    // Hours + pricing rule for every day
+    const hours = Array.from({ length: 7 }, (_, dow) => ({
+      venue_id: venue.id,
+      day_of_week: dow,
+      open_min: data.openMin,
+      close_min: data.closeMin,
+    }));
+    const pricing = Array.from({ length: 7 }, (_, dow) => ({
+      venue_id: venue.id,
+      day_of_week: dow,
+      start_min: data.openMin,
+      end_min: data.closeMin,
+      price_per_hour_pence: data.pricePerHourPence,
+      min_duration_min: 60,
+      slot_step_min: 30,
+    }));
+    await supabase.from("opening_hours").insert(hours);
+    await supabase.from("pricing_rules").insert(pricing);
+    return { id: venue.id };
+  });
+
+function labelFor(k: string) {
+  switch (k) {
+    case "court": return "Court";
+    case "table": return "Table";
+    case "lane": return "Lane";
+    case "sim": return "Sim Bay";
+    case "board": return "Board";
+    default: return "Resource";
+  }
+}

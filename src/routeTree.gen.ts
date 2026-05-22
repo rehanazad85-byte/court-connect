@@ -9,8 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VendorRouteImport } from './routes/vendor'
 import { Route as SummaryRouteImport } from './routes/summary'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as ConfirmationRouteImport } from './routes/confirmation'
 import { Route as BookingsRouteImport } from './routes/bookings'
@@ -19,14 +22,29 @@ import { Route as VenueVenueIdRouteImport } from './routes/venue.$venueId'
 import { Route as ActivityActivityRouteImport } from './routes/activity.$activity'
 import { Route as VenueVenueIdCourtsRouteImport } from './routes/venue.$venueId.courts'
 
+const VendorRoute = VendorRouteImport.update({
+  id: '/vendor',
+  path: '/vendor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SummaryRoute = SummaryRouteImport.update({
   id: '/summary',
   path: '/summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FavoritesRoute = FavoritesRouteImport.update({
@@ -70,8 +88,11 @@ export interface FileRoutesByFullPath {
   '/bookings': typeof BookingsRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
+  '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/signup': typeof SignupRoute
   '/summary': typeof SummaryRoute
+  '/vendor': typeof VendorRoute
   '/activity/$activity': typeof ActivityActivityRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
@@ -81,8 +102,11 @@ export interface FileRoutesByTo {
   '/bookings': typeof BookingsRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
+  '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/signup': typeof SignupRoute
   '/summary': typeof SummaryRoute
+  '/vendor': typeof VendorRoute
   '/activity/$activity': typeof ActivityActivityRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
@@ -93,8 +117,11 @@ export interface FileRoutesById {
   '/bookings': typeof BookingsRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
+  '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/signup': typeof SignupRoute
   '/summary': typeof SummaryRoute
+  '/vendor': typeof VendorRoute
   '/activity/$activity': typeof ActivityActivityRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
@@ -106,8 +133,11 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/confirmation'
     | '/favorites'
+    | '/login'
     | '/profile'
+    | '/signup'
     | '/summary'
+    | '/vendor'
     | '/activity/$activity'
     | '/venue/$venueId'
     | '/venue/$venueId/courts'
@@ -117,8 +147,11 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/confirmation'
     | '/favorites'
+    | '/login'
     | '/profile'
+    | '/signup'
     | '/summary'
+    | '/vendor'
     | '/activity/$activity'
     | '/venue/$venueId'
     | '/venue/$venueId/courts'
@@ -128,8 +161,11 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/confirmation'
     | '/favorites'
+    | '/login'
     | '/profile'
+    | '/signup'
     | '/summary'
+    | '/vendor'
     | '/activity/$activity'
     | '/venue/$venueId'
     | '/venue/$venueId/courts'
@@ -140,14 +176,24 @@ export interface RootRouteChildren {
   BookingsRoute: typeof BookingsRoute
   ConfirmationRoute: typeof ConfirmationRoute
   FavoritesRoute: typeof FavoritesRoute
+  LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
+  SignupRoute: typeof SignupRoute
   SummaryRoute: typeof SummaryRoute
+  VendorRoute: typeof VendorRoute
   ActivityActivityRoute: typeof ActivityActivityRoute
   VenueVenueIdRoute: typeof VenueVenueIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/vendor': {
+      id: '/vendor'
+      path: '/vendor'
+      fullPath: '/vendor'
+      preLoaderRoute: typeof VendorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/summary': {
       id: '/summary'
       path: '/summary'
@@ -155,11 +201,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/favorites': {
@@ -231,8 +291,11 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsRoute: BookingsRoute,
   ConfirmationRoute: ConfirmationRoute,
   FavoritesRoute: FavoritesRoute,
+  LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
+  SignupRoute: SignupRoute,
   SummaryRoute: SummaryRoute,
+  VendorRoute: VendorRoute,
   ActivityActivityRoute: ActivityActivityRoute,
   VenueVenueIdRoute: VenueVenueIdRouteWithChildren,
 }
