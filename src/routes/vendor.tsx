@@ -208,24 +208,24 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     city: "",
     description: "",
     coverImage: "",
-    resourceCount: "4",
+    resourceCount: 4 as number | null,
     resourceKind: "court" as "court" | "table" | "lane" | "sim" | "board",
-    pricePerHourPound: "30",
-    openHour: "7",
-    closeHour: "22",
+    pricePerHourPound: 30 as number | null,
+    openHour: 7 as number | null,
+    closeHour: 22 as number | null,
   });
 
   const sub = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const priceNum = parseFloat(form.pricePerHourPound);
-      const resCount = parseInt(form.resourceCount, 10);
-      const openH = parseInt(form.openHour, 10);
-      const closeH = parseInt(form.closeHour, 10);
-      if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price");
-      if (!Number.isFinite(resCount) || resCount < 1) throw new Error("Enter number of resources");
-      if (!Number.isFinite(openH) || !Number.isFinite(closeH) || closeH <= openH) throw new Error("Enter valid opening/closing hours");
+      const priceNum = form.pricePerHourPound;
+      const resCount = form.resourceCount;
+      const openH = form.openHour;
+      const closeH = form.closeHour;
+      if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
+      if (resCount == null || resCount < 1) throw new Error("Enter number of resources");
+      if (openH == null || closeH == null || closeH <= openH) throw new Error("Enter valid opening/closing hours");
       await create({
         data: {
           name: form.name,
@@ -276,7 +276,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="# of resources"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="# of resources"><NumberField className={cls} min={1} max={40} value={form.resourceCount} onChange={(v) => setForm({ ...form, resourceCount: v })} /></Field>
         <Field label="Resource kind">
           <select className={cls} value={form.resourceKind} onChange={(e) => setForm({ ...form, resourceKind: e.target.value as any })}>
             <option value="court">Court</option><option value="table">Table</option>
@@ -285,9 +285,9 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr"><input type="text" inputMode="decimal" className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: e.target.value.replace(/[^0-9.]/g, "") })} /></Field>
-        <Field label="Opens (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.openHour} onChange={(e) => setForm({ ...form, openHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
-        <Field label="Closes (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.closeHour} onChange={(e) => setForm({ ...form, closeHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="£ / hr"><NumberField className={cls} allowDecimal min={1} max={500} value={form.pricePerHourPound} onChange={(v) => setForm({ ...form, pricePerHourPound: v })} /></Field>
+        <Field label="Opens (hr)"><NumberField className={cls} min={0} max={23} value={form.openHour} onChange={(v) => setForm({ ...form, openHour: v })} /></Field>
+        <Field label="Closes (hr)"><NumberField className={cls} min={1} max={24} value={form.closeHour} onChange={(v) => setForm({ ...form, closeHour: v })} /></Field>
       </div>
       <button disabled={busy} className="h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Creating..." : "Create venue"}</button>
     </form>
