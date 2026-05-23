@@ -19,8 +19,8 @@ const vendorBookingsQuery = queryOptions({ queryKey: ["vendor-bookings"], queryF
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
   beforeLoad: async ({ location }) => {
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) throw redirect({ to: "/login", search: { redirect: location.pathname } });
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.user) throw redirect({ to: "/login", search: { redirect: location.pathname } });
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
   pendingComponent: () => <PendingScreen label="Loading vendor dashboard…" />,
