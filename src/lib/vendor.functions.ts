@@ -5,16 +5,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 
-// Grant the current user the 'vendor' role.
+// Grant the current user the 'vendor' role via SECURITY DEFINER RPC.
 export const claimVendor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("user_roles")
-      .insert({ user_id: userId, role: "vendor" });
-    // Ignore unique violation (already a vendor)
-    if (error && !/duplicate key/i.test(error.message)) throw new Error(error.message);
+    const { supabase } = context;
+    const { error } = await supabase.rpc("claim_vendor_role");
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
