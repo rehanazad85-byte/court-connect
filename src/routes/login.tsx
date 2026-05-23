@@ -9,12 +9,17 @@ export const Route = createFileRoute("/login")({
   validateSearch: z.object({ redirect: z.string().optional() }),
   beforeLoad: async ({ search }) => {
     const { data } = await supabase.auth.getUser();
-    const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
-    if (data.user) throw redirect({ to: target });
+    const target = safeRedirectTarget(search.redirect);
+    if (data.user) throw redirect({ href: target });
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
 });
+
+function safeRedirectTarget(value?: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/~oauth")) return "/";
+  return value;
+}
 
 function LoginPage() {
   const search = Route.useSearch();
@@ -29,15 +34,17 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) return toast.error(error.message);
-    nav({ to: search.redirect ?? "/" });
+    nav({ href: safeRedirectTarget(search.redirect), replace: true });
   };
 
   const onGoogle = async () => {
     setBusy(true);
+    window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
     // Return to this login page so beforeLoad can forward to `redirect` once the session is set.
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href });
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
     setBusy(false);
     if (res?.error) toast.error(res.error.message ?? "Sign-in failed");
+    else if (!res?.redirected) nav({ href: safeRedirectTarget(search.redirect), replace: true });
   };
 
   return (
