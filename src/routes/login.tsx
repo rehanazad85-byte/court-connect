@@ -39,6 +39,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +61,7 @@ function LoginPage() {
 
   const onGoogle = async () => {
     setBusy(true);
+    setAuthError(null);
     try {
       window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
       await snapshotAuthDebug("google login started", {
@@ -70,14 +72,23 @@ function LoginPage() {
       const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
       if (res?.error) {
         logAuthDebug("google login failed", { authError: res.error.message ?? "Sign-in failed" });
+        setAuthError(res.error.message ?? "Sign-in failed");
         return toast.error(res.error.message ?? "Sign-in failed");
       }
       if (res?.redirected) return; // browser will navigate
+      const session = await waitForRestoredSession();
+      if (!session) {
+        const message = "Google returned, but Knox could not restore the Supabase session.";
+        await snapshotAuthDebug("google login failed: session not restored", { authError: message });
+        setAuthError(message);
+        return toast.error(message);
+      }
       const target = await resolveLandingTarget(search.redirect);
-      await snapshotAuthDebug("google login returned tokens", { target });
+      await snapshotAuthDebug("google login returned tokens", { target, userId: session.user.id });
       nav({ href: target, replace: true });
     } catch (e) {
       logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
+      setAuthError(e instanceof Error ? e.message : "Google sign-in failed");
       toast.error(e instanceof Error ? e.message : "Google sign-in failed");
     } finally {
       setBusy(false);
@@ -97,6 +108,12 @@ function LoginPage() {
           <GoogleIcon /> Continue with Google
         </button>
 
+        {authError && (
+          <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
+            {authError}
+          </div>
+        )}
+
         <div className="my-6 flex items-center gap-3 text-[11px] text-white/40">
           <div className="h-px flex-1 bg-white/10" /> OR <div className="h-px flex-1 bg-white/10" />
         </div>
@@ -112,6 +129,16 @@ function LoginPage() {
       <AuthDebugPanel title="Login auth debug" />
     </div>
   );
+}
+
+async function waitForRestoredSession(timeoutMs = 4000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) return data.session;
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+  }
+  return null;
 }
 
 function GoogleIcon() {
