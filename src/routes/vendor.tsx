@@ -196,11 +196,11 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     city: "",
     description: "",
     coverImage: "",
-    resourceCount: 4,
+    resourceCount: "4",
     resourceKind: "court" as "court" | "table" | "lane" | "sim" | "board",
-    pricePerHourPound: 30,
-    openMin: 7 * 60,
-    closeMin: 22 * 60,
+    pricePerHourPound: "30",
+    openHour: "7",
+    closeHour: "22",
   });
 
   const sub = async (e: React.FormEvent) => {
