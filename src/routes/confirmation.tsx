@@ -1,12 +1,30 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { Check, X } from "lucide-react";
+import { Check, X, Calendar, Clock, LayoutGrid, MapPin } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { formatPence } from "@/lib/mock-data";
+import { formatDateTimeUTC } from "@/lib/date-utils";
+import { supabase } from "@/integrations/supabase/client";
+import { getBookingByReference } from "@/lib/booking.functions";
+
+const bookingByRef = (reference: string) =>
+  queryOptions({
+    queryKey: ["booking", "ref", reference],
+    queryFn: () => getBookingByReference({ data: { reference } }),
+  });
 
 export const Route = createFileRoute("/confirmation")({
   validateSearch: z.object({ ref: z.string().optional(), total: z.number().optional() }),
   head: () => ({ meta: [{ title: "Booking confirmed — Knox" }] }),
+  beforeLoad: async ({ location }) => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) throw redirect({ to: "/login", search: { redirect: location.href } });
+  },
+  loader: ({ context, location }) => {
+    const ref = (location.search as { ref?: string }).ref;
+    if (ref) return context.queryClient.ensureQueryData(bookingByRef(ref));
+  },
   component: ConfirmationPage,
 });
 
@@ -27,10 +45,12 @@ function ConfirmationPage() {
           <p className="mt-2 text-center text-sm text-white/70">Your booking is locked in.<br />See you on court.</p>
         </div>
 
-        <div className="mx-5 mt-8 rounded-2xl bg-card p-5 text-card-foreground text-center shadow-pop">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Booking Reference</div>
-          <div className="mt-1 text-xl font-bold">{ref ?? "—"}</div>
-          {total != null && <div className="mt-3 text-sm text-muted-foreground">Total <span className="font-bold text-primary">{formatPence(total)}</span></div>}
+        <div className="mx-5 mt-6 rounded-2xl bg-card p-5 text-card-foreground shadow-pop">
+          <div className="text-center">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Booking Reference</div>
+            <div className="mt-1 text-xl font-bold font-mono">{ref ?? "—"}</div>
+          </div>
+          {ref && <BookingDetails reference={ref} fallbackTotal={total} />}
         </div>
 
         <div className="flex-1" />
@@ -41,6 +61,44 @@ function ConfirmationPage() {
         </div>
 
         <div className="bg-ink"><BottomNav /></div>
+      </div>
+    </div>
+  );
+}
+
+function BookingDetails({ reference, fallbackTotal }: { reference: string; fallbackTotal?: number }) {
+  const { data } = useSuspenseQuery(bookingByRef(reference));
+  const b = data.booking;
+  if (!b) {
+    return fallbackTotal != null ? (
+      <div className="mt-3 text-center text-sm text-muted-foreground">Total <span className="font-bold text-primary">{formatPence(fallbackTotal)}</span></div>
+    ) : null;
+  }
+  const venue = (b as any).venues as { name?: string; city?: string; address?: string } | null;
+  return (
+    <div className="mt-4 space-y-3 border-t pt-4">
+      <Row icon={MapPin} label="Venue" value={venue?.name ?? ""} sub={venue?.address || venue?.city || undefined} />
+      <Row icon={Calendar} label="When" value={formatDateTimeUTC(b.starts_at)} />
+      <Row icon={Clock} label="Duration" value={`${Math.round((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 60000)} min`} />
+      <Row icon={LayoutGrid} label={data.resources.length === 1 ? "Court" : "Courts"} value={data.resources.map((r) => r.name).join(", ") || "—"} />
+      <div className="mt-1 flex items-center justify-between border-t pt-3">
+        <span className="text-sm font-bold">Total paid</span>
+        <span className="text-base font-bold text-primary">{formatPence(b.total_pence)}</span>
+      </div>
+    </div>
+  );
+}
+
+function Row({ icon: Icon, label, value, sub }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; sub?: string }) {
+  return (
+    <div className="flex items-start gap-3 text-left">
+      <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-muted">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="text-sm font-semibold truncate">{value}</div>
+        {sub && <div className="text-xs text-muted-foreground truncate">{sub}</div>}
       </div>
     </div>
   );
