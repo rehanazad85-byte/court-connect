@@ -180,11 +180,12 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
       <div className="mt-1">{children}</div>
+      {help && <span className="mt-1 block text-[11px] text-muted-foreground">{help}</span>}
     </label>
   );
 }
