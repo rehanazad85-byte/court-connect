@@ -62,6 +62,17 @@ export const Route = createFileRoute("/vendor")({
   loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
   pendingComponent: () => <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>,
   pendingMs: 0,
+  errorComponent: ({ error }) => (
+    <PhoneShell>
+      <div className="px-5 pt-10">
+        <h1 className="text-xl font-bold">Vendor dashboard could not load</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "Unknown vendor auth error"}
+        </p>
+      </div>
+      <AuthDebugPanel title="Vendor auth debug" />
+    </PhoneShell>
+  ),
   component: () => (
     <Suspense fallback={<PendingScreen label="Loading vendor dashboard…" />}>
       <VendorPage />
