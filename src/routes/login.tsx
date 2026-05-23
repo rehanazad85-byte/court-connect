@@ -2,7 +2,6 @@ import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-ro
 import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { resolveLandingTarget, safeRedirectTarget } from "@/lib/auth-redirect";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
@@ -62,36 +61,44 @@ function LoginPage() {
   const onGoogle = async () => {
     setBusy(true);
     setAuthError(null);
+    let startedRedirect = false;
     try {
-      window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
+      const returnTarget = safeRedirectTarget(search.redirect);
+      const redirectTo = window.location.origin;
+      window.sessionStorage.setItem("knox_auth_redirect", returnTarget);
       await snapshotAuthDebug("google login started", {
         requestedRedirect: search.redirect ?? null,
         storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
-        redirectUri: window.location.origin,
+        redirectTo,
       });
-      const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (res?.error) {
-        logAuthDebug("google login failed", { authError: res.error.message ?? "Sign-in failed" });
-        setAuthError(res.error.message ?? "Sign-in failed");
-        return toast.error(res.error.message ?? "Sign-in failed");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+      if (error) {
+        logAuthDebug("google login failed", { authError: error.message, redirectTo, returnTarget });
+        setAuthError(error.message);
+        return toast.error(error.message);
       }
-      if (res?.redirected) return; // browser will navigate
-      const session = await waitForRestoredSession();
-      if (!session) {
-        const message = "Google returned, but Knox could not restore the Supabase session.";
-        await snapshotAuthDebug("google login failed: session not restored", { authError: message });
+      if (!data.url) {
+        const message = "Google sign-in did not return a redirect URL.";
+        logAuthDebug("google login failed", { authError: message, redirectTo, returnTarget });
         setAuthError(message);
         return toast.error(message);
       }
-      const target = await resolveLandingTarget(search.redirect);
-      await snapshotAuthDebug("google login returned tokens", { target, userId: session.user.id });
-      nav({ href: target, replace: true });
+      startedRedirect = true;
+      logAuthDebug("google login redirecting full page", { redirectTo, returnTarget });
+      navigateToOAuthUrl(data.url);
     } catch (e) {
       logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
       setAuthError(e instanceof Error ? e.message : "Google sign-in failed");
       toast.error(e instanceof Error ? e.message : "Google sign-in failed");
     } finally {
-      setBusy(false);
+      if (!startedRedirect) setBusy(false);
     }
   };
 
@@ -131,14 +138,16 @@ function LoginPage() {
   );
 }
 
-async function waitForRestoredSession(timeoutMs = 4000) {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) return data.session;
-    await new Promise((resolve) => window.setTimeout(resolve, 100));
+function navigateToOAuthUrl(url: string) {
+  try {
+    if (window.top && window.top !== window.self) {
+      window.top.location.assign(url);
+      return;
+    }
+  } catch {
+    // Cross-origin preview frames may block top navigation; fall back to this frame.
   }
-  return null;
+  window.location.assign(url);
 }
 
 function GoogleIcon() {
