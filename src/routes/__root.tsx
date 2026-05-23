@@ -124,7 +124,12 @@ function AuthSync() {
               await router.navigate({ href: target, replace: true });
             }
           }
-          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+          if (event === "SIGNED_OUT") {
+            qc.clear();
+            await router.invalidate();
+            return;
+          }
+          if (event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
           await router.invalidate();
           qc.invalidateQueries();
         })();
