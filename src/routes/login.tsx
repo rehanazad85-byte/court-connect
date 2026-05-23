@@ -62,7 +62,6 @@ function LoginPage() {
   const onGoogle = async () => {
     setBusy(true);
     setAuthError(null);
-    let startedRedirect = false;
     try {
       const returnTarget = safeRedirectTarget(search.redirect);
       const redirectTo = window.location.origin;
@@ -72,15 +71,31 @@ function LoginPage() {
         storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
         redirectTo,
       });
-      startedRedirect = true;
-      logAuthDebug("google login redirecting full page", { redirectTo, returnTarget });
-      navigateToOAuthUrl(createGoogleOAuthUrl(redirectTo));
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: redirectTo,
+        extraParams: { prompt: "select_account" },
+      });
+      if (result.error) {
+        logAuthDebug("google login error", { authError: result.error.message });
+        setAuthError(result.error.message);
+        toast.error(result.error.message);
+        setBusy(false);
+        return;
+      }
+      if (result.redirected) {
+        logAuthDebug("google login redirected via broker", { redirectTo });
+        return;
+      }
+      // Tokens already set — resolve landing.
+      const target = await resolveLandingTarget(returnTarget);
+      window.sessionStorage.removeItem("knox_auth_redirect");
+      await snapshotAuthDebug("google login success (no redirect)", { target });
+      nav({ href: target, replace: true });
     } catch (e) {
       logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
       setAuthError(e instanceof Error ? e.message : "Google sign-in failed");
       toast.error(e instanceof Error ? e.message : "Google sign-in failed");
-    } finally {
-      if (!startedRedirect) setBusy(false);
+      setBusy(false);
     }
   };
 
