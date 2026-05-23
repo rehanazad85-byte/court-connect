@@ -1,5 +1,5 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { Suspense, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Calendar, Building2 } from "lucide-react";
@@ -32,34 +32,6 @@ const vendorBookingsQuery = queryOptions({
 
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
-  beforeLoad: async ({ location }) => {
-    logAuthDebug("vendor guard: checking", {
-      route: location.pathname,
-      storedRedirect: typeof window !== "undefined" ? window.sessionStorage.getItem("knox_auth_redirect") : null,
-      authLoadingState: "checking session",
-    });
-    const { data, error } = await supabase.auth.getSession();
-    if (!data.session?.user) {
-      logAuthDebug("vendor guard: redirecting to login", {
-        route: location.pathname,
-        storedRedirect: typeof window !== "undefined" ? window.sessionStorage.getItem("knox_auth_redirect") : null,
-        sessionExists: Boolean(data.session),
-        userIdExists: Boolean(data.session?.user?.id),
-        authError: error?.message ?? null,
-        reason: error?.message ?? "No locally restored session/user for /vendor",
-        redirectTo: "/login",
-        redirectSearch: { redirect: location.pathname },
-      });
-      throw redirect({ to: "/login", search: { redirect: location.pathname } });
-    }
-    logAuthDebug("vendor guard: allowing", {
-      route: location.pathname,
-      sessionExists: true,
-      userIdExists: Boolean(data.session.user.id),
-      userId: data.session.user.id,
-    });
-  },
-  loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
   pendingComponent: () => <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>,
   pendingMs: 0,
   errorComponent: ({ error }) => (
@@ -73,12 +45,57 @@ export const Route = createFileRoute("/vendor")({
       <AuthDebugPanel title="Vendor auth debug" />
     </PhoneShell>
   ),
-  component: () => (
-    <Suspense fallback={<PendingScreen label="Loading vendor dashboard…" />}>
-      <VendorPage />
-    </Suspense>
-  ),
+  component: VendorAuthGate,
 });
+
+function VendorAuthGate() {
+  const nav = useNavigate();
+  const [state, setState] = useState<"checking" | "allowed" | "redirecting">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      logAuthDebug("vendor guard: checking", {
+        route: window.location.pathname + window.location.search,
+        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
+        authLoadingState: "checking session",
+      });
+      const { data, error } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (!data.session?.user) {
+        logAuthDebug("vendor guard: redirecting to login", {
+          route: window.location.pathname + window.location.search,
+          storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
+          sessionExists: Boolean(data.session),
+          userIdExists: Boolean(data.session?.user?.id),
+          authError: error?.message ?? null,
+          reason: error?.message ?? "No locally restored session/user for /vendor",
+          redirectTo: "/login",
+          redirectSearch: { redirect: "/vendor" },
+        });
+        setState("redirecting");
+        await nav({ to: "/login", search: { redirect: "/vendor" }, replace: true });
+        return;
+      }
+      logAuthDebug("vendor guard: allowing", {
+        route: window.location.pathname + window.location.search,
+        sessionExists: true,
+        userIdExists: Boolean(data.session.user.id),
+        userId: data.session.user.id,
+      });
+      setState("allowed");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [nav]);
+
+  if (state !== "allowed") {
+    return <><PendingScreen label={state === "redirecting" ? "Opening sign in…" : "Checking vendor session…"} /><AuthDebugPanel title="Vendor auth debug" /></>;
+  }
+
+  return <VendorPage />;
+}
 
 function VendorPage() {
   const qc = useQueryClient();
