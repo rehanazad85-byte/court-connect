@@ -100,7 +100,11 @@ function AuthSync() {
   const router = useRouter();
   const qc = useQueryClient();
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Only react to real auth transitions. INITIAL_SESSION and TOKEN_REFRESHED
+      // fire on every page load / refresh and would cause an invalidation loop
+      // with route beforeLoad guards that call supabase.auth.getUser().
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       qc.invalidateQueries();
     });
