@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Plus, Calendar, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
-import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue } from "@/lib/vendor.functions";
+import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue, setVenuePublished } from "@/lib/vendor.functions";
 import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
@@ -62,8 +62,10 @@ function VendorPage() {
 }
 
 function VendorDashboard() {
+  const qc = useQueryClient();
   const venues = useSuspenseQuery(myVenuesQuery);
   const bookings = useSuspenseQuery(vendorBookingsQuery);
+  const togglePublish = useServerFn(setVenuePublished);
   const [showCreate, setShowCreate] = useState(false);
 
   const now = Date.now();
@@ -74,16 +76,27 @@ function VendorDashboard() {
     .filter((b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now - 7 * 86400000)
     .reduce((s, b) => s + b.total_pence, 0);
 
+  const onTogglePublish = async (venueId: string, next: boolean) => {
+    try {
+      await togglePublish({ data: { venueId, isPublished: next } });
+      toast.success(next ? "Venue published" : "Venue unpublished");
+      await qc.invalidateQueries({ queryKey: ["my-venues"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
   return (
     <PhoneShell>
       <div className="px-5 pt-7">
         <h1 className="text-2xl font-bold">Vendor</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Today: {today.length} sessions · Week: {formatPence(revenue7d)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">Manage venues, courts and bookings.</p>
       </div>
 
-      <div className="px-5 pt-6 grid grid-cols-2 gap-3">
-        <Stat label="Venues" value={String(venues.data.venues.length)} />
+      <div className="px-5 pt-5 grid grid-cols-3 gap-2">
+        <Stat label="Today" value={String(today.length)} />
         <Stat label="Upcoming" value={String(upcoming.length)} />
+        <Stat label="7-day rev" value={formatPence(revenue7d)} />
       </div>
 
       <div className="px-5 pt-6">
@@ -98,16 +111,31 @@ function VendorDashboard() {
 
         <div className="mt-3 space-y-2">
           {venues.data.venues.length === 0 && (
-            <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">No venues yet. Tap “New”.</div>
+            <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">No venues yet. Tap "New".</div>
           )}
           {venues.data.venues.map((v) => (
-            <div key={v.id} className="flex items-center gap-3 rounded-2xl bg-card p-3 shadow-soft">
-              {v.cover_image && <img src={v.cover_image} alt="" className="h-12 w-12 rounded-lg object-cover" />}
-              <div className="flex-1">
-                <div className="text-sm font-bold">{v.name}</div>
-                <div className="text-xs text-muted-foreground">{ACTIVITY_LABELS[v.activity] ?? v.activity} · {v.type} · {v.is_published ? "Live" : "Draft"}</div>
+            <div key={v.id} className="rounded-2xl bg-card p-3 shadow-soft">
+              <div className="flex items-center gap-3">
+                {v.cover_image && <img src={v.cover_image} alt="" className="h-12 w-12 rounded-lg object-cover" />}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-bold truncate">{v.name}</div>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${v.is_published ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {v.is_published ? "Live" : "Draft"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {ACTIVITY_LABELS[v.activity] ?? v.activity} · {v.type} · {(v as any).resourceCount ?? 0} courts
+                  </div>
+                </div>
+                <Link to="/venue/$venueId" params={{ venueId: v.id }} className="text-xs font-bold text-primary">View</Link>
               </div>
-              <Link to="/venue/$venueId" params={{ venueId: v.id }} className="text-xs font-bold text-primary">View</Link>
+              <div className="mt-2 flex gap-2 border-t pt-2 text-[11px] font-semibold">
+                <button onClick={() => onTogglePublish(v.id, !v.is_published)} className="rounded-full border px-2.5 py-1 hover:bg-muted">
+                  {v.is_published ? "Unpublish" : "Publish"}
+                </button>
+                <Link to="/venue/$venueId" params={{ venueId: v.id }} className="rounded-full border px-2.5 py-1 hover:bg-muted">Hours · Pricing · Courts</Link>
+              </div>
             </div>
           ))}
         </div>

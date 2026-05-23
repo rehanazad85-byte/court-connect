@@ -389,6 +389,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_booking: { Args: { _booking_id: string }; Returns: undefined }
+      claim_vendor_role: { Args: never; Returns: undefined }
       create_booking: {
         Args: {
           _ends_at: string
