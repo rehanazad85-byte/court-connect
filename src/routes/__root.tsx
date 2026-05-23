@@ -10,6 +10,7 @@ import {
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
 
 import appCss from "../styles.css?url";
 
@@ -101,9 +102,18 @@ function AuthSync() {
   const qc = useQueryClient();
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      logAuthDebug("auth state event", {
+        event,
+        route: window.location.pathname + window.location.search,
+        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
+        sessionExists: Boolean(session),
+        userIdExists: Boolean(session?.user?.id),
+        userId: session?.user?.id ?? null,
+      });
       window.setTimeout(() => {
         void (async () => {
           if (event === "SIGNED_OUT") {
+            logAuthDebug("signed out: navigating home", { route: window.location.pathname });
             qc.clear();
             window.sessionStorage.removeItem("knox_auth_redirect");
             await router.navigate({ to: "/", replace: true });
@@ -120,6 +130,7 @@ function AuthSync() {
               const { resolveLandingTarget } = await import("@/lib/auth-redirect");
               window.sessionStorage.removeItem("knox_auth_redirect");
               const target = await resolveLandingTarget(stored);
+              await snapshotAuthDebug("auth callback success: resolving landing", { path, stored, target });
               if (target && window.location.pathname !== target) {
                 await router.navigate({ href: target, replace: true });
               }
