@@ -71,28 +71,9 @@ function LoginPage() {
         storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
         redirectTo,
       });
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          queryParams: { prompt: "select_account" },
-        },
-      });
-      if (error) {
-        logAuthDebug("google login failed", { authError: error.message, redirectTo, returnTarget });
-        setAuthError(error.message);
-        return toast.error(error.message);
-      }
-      if (!data.url) {
-        const message = "Google sign-in did not return a redirect URL.";
-        logAuthDebug("google login failed", { authError: message, redirectTo, returnTarget });
-        setAuthError(message);
-        return toast.error(message);
-      }
       startedRedirect = true;
       logAuthDebug("google login redirecting full page", { redirectTo, returnTarget });
-      navigateToOAuthUrl(data.url);
+      navigateToOAuthUrl(createGoogleOAuthUrl(redirectTo));
     } catch (e) {
       logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
       setAuthError(e instanceof Error ? e.message : "Google sign-in failed");
@@ -148,6 +129,25 @@ function navigateToOAuthUrl(url: string) {
     // Cross-origin preview frames may block top navigation; fall back to this frame.
   }
   window.location.assign(url);
+}
+
+function createGoogleOAuthUrl(redirectTo: string) {
+  const params = new URLSearchParams({
+    provider: "google",
+    redirect_uri: redirectTo,
+    state: createOAuthState(),
+    prompt: "select_account",
+  });
+  return `/~oauth/initiate?${params.toString()}`;
+}
+
+function createOAuthState() {
+  if (window.crypto?.getRandomValues) {
+    return Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }
 
 function GoogleIcon() {
