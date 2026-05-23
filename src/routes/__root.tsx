@@ -105,21 +105,33 @@ function AuthSync() {
         void (async () => {
           if (event === "SIGNED_OUT") {
             qc.clear();
+            window.sessionStorage.removeItem("knox_auth_redirect");
             await router.navigate({ to: "/", replace: true });
             return;
           }
-          if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
-            const { resolveLandingTarget } = await import("@/lib/auth-redirect");
-            const stored = window.sessionStorage.getItem("knox_auth_redirect");
-            window.sessionStorage.removeItem("knox_auth_redirect");
-            const target = await resolveLandingTarget(stored);
-            if (target && window.location.pathname !== target) {
-              await router.navigate({ href: target, replace: true });
+          // Only auto-redirect on a real sign-in, and only from auth pages.
+          // INITIAL_SESSION fires on every mount and must NOT navigate the
+          // user away from their current page — that caused a flicker loop
+          // between /login and /vendor.
+          if (event === "SIGNED_IN" && session?.user) {
+            const path = window.location.pathname;
+            if (path === "/login" || path === "/signup") {
+              const { resolveLandingTarget } = await import("@/lib/auth-redirect");
+              const stored = window.sessionStorage.getItem("knox_auth_redirect");
+              window.sessionStorage.removeItem("knox_auth_redirect");
+              const target = await resolveLandingTarget(stored);
+              if (target && window.location.pathname !== target) {
+                await router.navigate({ href: target, replace: true });
+              }
             }
+            await router.invalidate();
+            qc.invalidateQueries();
+            return;
           }
-          if (event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
-          await router.invalidate();
-          qc.invalidateQueries();
+          if (event === "USER_UPDATED") {
+            await router.invalidate();
+            qc.invalidateQueries();
+          }
         })();
       }, 0);
     });
