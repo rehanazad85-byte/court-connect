@@ -100,34 +100,22 @@ function AuthSync() {
   const router = useRouter();
   const qc = useQueryClient();
   useEffect(() => {
-    const resolveAfterSignIn = async (storedTarget: string | null) => {
-      if (storedTarget && storedTarget.startsWith("/") && !storedTarget.startsWith("//") && !storedTarget.startsWith("/~oauth")) {
-        return storedTarget;
-      }
-      try {
-        const { data } = await supabase.from("user_roles").select("role");
-        if (data?.some((r) => r.role === "vendor")) return "/vendor";
-      } catch {
-        // ignore — fall through
-      }
-      return null;
-    };
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       window.setTimeout(() => {
         void (async () => {
+          if (event === "SIGNED_OUT") {
+            qc.clear();
+            await router.navigate({ to: "/", replace: true });
+            return;
+          }
           if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
+            const { resolveLandingTarget } = await import("@/lib/auth-redirect");
             const stored = window.sessionStorage.getItem("knox_auth_redirect");
             window.sessionStorage.removeItem("knox_auth_redirect");
-            const target = await resolveAfterSignIn(stored);
+            const target = await resolveLandingTarget(stored);
             if (target && window.location.pathname !== target) {
               await router.navigate({ href: target, replace: true });
             }
-          }
-          if (event === "SIGNED_OUT") {
-            qc.clear();
-            await router.invalidate();
-            return;
           }
           if (event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
           await router.invalidate();
