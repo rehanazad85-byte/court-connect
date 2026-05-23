@@ -5,12 +5,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 
+async function resolveLandingTarget(explicitRedirect?: string): Promise<string> {
+  const safe = safeRedirectTarget(explicitRedirect);
+  if (safe !== "/") return safe;
+  // No explicit destination — route vendors to their dashboard.
+  try {
+    const { data } = await supabase.from("user_roles").select("role");
+    if (data?.some((r) => r.role === "vendor")) return "/vendor";
+  } catch {
+    // ignore — fall back to /
+  }
+  return "/";
+}
+
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({ redirect: z.string().optional() }),
   beforeLoad: async ({ search }) => {
     const { data } = await supabase.auth.getUser();
-    const target = safeRedirectTarget(search.redirect);
-    if (data.user) throw redirect({ href: target });
+    if (data.user) {
+      const target = await resolveLandingTarget(search.redirect);
+      throw redirect({ href: target });
+    }
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
@@ -32,19 +47,24 @@ function LoginPage() {
     e.preventDefault();
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setBusy(false); return toast.error(error.message); }
+    const target = await resolveLandingTarget(search.redirect);
     setBusy(false);
-    if (error) return toast.error(error.message);
-    nav({ href: safeRedirectTarget(search.redirect), replace: true });
+    nav({ href: target, replace: true });
   };
 
   const onGoogle = async () => {
     setBusy(true);
     window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
-    // Return to this login page so beforeLoad can forward to `redirect` once the session is set.
     const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    setBusy(false);
-    if (res?.error) toast.error(res.error.message ?? "Sign-in failed");
-    else if (!res?.redirected) nav({ href: safeRedirectTarget(search.redirect), replace: true });
+    if (res?.error) { setBusy(false); return toast.error(res.error.message ?? "Sign-in failed"); }
+    if (!res?.redirected) {
+      const target = await resolveLandingTarget(search.redirect);
+      setBusy(false);
+      nav({ href: target, replace: true });
+    } else {
+      setBusy(false);
+    }
   };
 
   return (
