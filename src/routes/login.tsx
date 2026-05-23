@@ -138,7 +138,7 @@ function createGoogleOAuthUrl(redirectTo: string) {
     state: createOAuthState(),
     prompt: "select_account",
   });
-  return `/~oauth/initiate?${params.toString()}`;
+  return `${window.location.origin}/~oauth/initiate?${params.toString()}`;
 }
 
 function createOAuthState() {
