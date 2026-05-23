@@ -148,6 +148,7 @@ function AuthSync() {
               if (target && window.location.pathname !== target) {
                 await router.navigate({ href: target, replace: true });
               }
+              return;
             }
             await router.invalidate();
             qc.invalidateQueries();
