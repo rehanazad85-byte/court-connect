@@ -62,14 +62,19 @@ function BookingsPage() {
         )}
       </div>
 
-      {past.length > 0 && (
-        <div className="px-5 pt-8 pb-8">
+      <div className="px-5 pt-8 pb-8">
+        <div className="flex items-center gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Past</h2>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        {past.length === 0 ? (
+          <div className="mt-3 rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">No past sessions yet.</div>
+        ) : (
           <div className="mt-3 space-y-3">
             {past.map((b) => <BookingCard key={b.id} b={b} />)}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </PhoneShell>
   );
 }
