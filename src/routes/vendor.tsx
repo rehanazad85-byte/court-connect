@@ -176,6 +176,15 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
+
 function CreateVenueForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const create = useServerFn(createVenue);
