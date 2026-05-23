@@ -6,6 +6,8 @@ import { Plus, Calendar, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
 import { PendingScreen } from "@/components/PendingScreen";
+import { AuthDebugPanel } from "@/components/AuthDebugPanel";
+import { logAuthDebug } from "@/lib/auth-debug";
 import {
   listMyVenues,
   listVendorBookings,
@@ -31,12 +33,34 @@ const vendorBookingsQuery = queryOptions({
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
   beforeLoad: async ({ location }) => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session?.user)
+    logAuthDebug("vendor guard: checking", {
+      route: location.pathname,
+      storedRedirect: typeof window !== "undefined" ? window.sessionStorage.getItem("knox_auth_redirect") : null,
+      authLoadingState: "checking session",
+    });
+    const { data, error } = await supabase.auth.getSession();
+    if (!data.session?.user) {
+      logAuthDebug("vendor guard: redirecting to login", {
+        route: location.pathname,
+        storedRedirect: typeof window !== "undefined" ? window.sessionStorage.getItem("knox_auth_redirect") : null,
+        sessionExists: Boolean(data.session),
+        userIdExists: Boolean(data.session?.user?.id),
+        authError: error?.message ?? null,
+        reason: error?.message ?? "No locally restored session/user for /vendor",
+        redirectTo: "/login",
+        redirectSearch: { redirect: location.pathname },
+      });
       throw redirect({ to: "/login", search: { redirect: location.pathname } });
+    }
+    logAuthDebug("vendor guard: allowing", {
+      route: location.pathname,
+      sessionExists: true,
+      userIdExists: Boolean(data.session.user.id),
+      userId: data.session.user.id,
+    });
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
-  pendingComponent: () => <PendingScreen label="Loading vendor dashboard…" />,
+  pendingComponent: () => <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>,
   pendingMs: 0,
   component: () => (
     <Suspense fallback={<PendingScreen label="Loading vendor dashboard…" />}>
@@ -78,6 +102,7 @@ function VendorPage() {
             Become a vendor
           </button>
         </div>
+        <AuthDebugPanel title="Vendor auth debug" />
       </PhoneShell>
     );
   }
@@ -231,6 +256,7 @@ function VendorDashboard() {
           })}
         </div>
       </div>
+      <AuthDebugPanel title="Vendor auth debug" />
     </PhoneShell>
   );
 }
