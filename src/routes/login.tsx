@@ -38,7 +38,6 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,46 +57,6 @@ function LoginPage() {
     }
   };
 
-  const onGoogle = async () => {
-    setBusy(true);
-    setAuthError(null);
-    try {
-      const returnTarget = safeRedirectTarget(search.redirect);
-      const redirectTo = window.location.origin;
-      window.sessionStorage.setItem("knox_auth_redirect", returnTarget);
-      await snapshotAuthDebug("google login started", {
-        requestedRedirect: search.redirect ?? null,
-        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
-        redirectTo,
-      });
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: redirectTo,
-        extraParams: { prompt: "select_account" },
-      });
-      if (result.error) {
-        logAuthDebug("google login error", { authError: result.error.message });
-        setAuthError(result.error.message);
-        toast.error(result.error.message);
-        setBusy(false);
-        return;
-      }
-      if (result.redirected) {
-        logAuthDebug("google login redirected via broker", { redirectTo });
-        return;
-      }
-      // Tokens already set — resolve landing.
-      const target = await resolveLandingTarget(returnTarget);
-      window.sessionStorage.removeItem("knox_auth_redirect");
-      await snapshotAuthDebug("google login success (no redirect)", { target });
-      nav({ href: target, replace: true });
-    } catch (e) {
-      logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
-      setAuthError(e instanceof Error ? e.message : "Google sign-in failed");
-      toast.error(e instanceof Error ? e.message : "Google sign-in failed");
-      setBusy(false);
-    }
-  };
-
   return (
     <div className="min-h-dvh bg-ink text-ink-foreground">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-12 pb-8">
@@ -107,21 +66,7 @@ function LoginPage() {
           <p className="mt-2 text-sm text-white/70">Sign in to book and manage sessions.</p>
         </div>
 
-        <button onClick={onGoogle} disabled={busy} className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-white text-sm font-semibold text-black disabled:opacity-60">
-          <GoogleIcon /> Continue with Google
-        </button>
-
-        {authError && (
-          <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
-            {authError}
-          </div>
-        )}
-
-        <div className="my-6 flex items-center gap-3 text-[11px] text-white/40">
-          <div className="h-px flex-1 bg-white/10" /> OR <div className="h-px flex-1 bg-white/10" />
-        </div>
-
-        <form onSubmit={onEmail} className="space-y-3">
+        <form onSubmit={onEmail} className="mt-8 space-y-3">
           <input className="h-12 w-full rounded-xl bg-white/5 px-4 text-sm outline-none placeholder:text-white/40 focus:bg-white/10" placeholder="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           <input className="h-12 w-full rounded-xl bg-white/5 px-4 text-sm outline-none placeholder:text-white/40 focus:bg-white/10" placeholder="Password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
           <button disabled={busy} type="submit" className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">Sign in</button>
@@ -131,12 +76,5 @@ function LoginPage() {
       </div>
       <AuthDebugPanel title="Login auth debug" />
     </div>
-  );
-}
-
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5"><path fill="#4285F4" d="M22.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h6c-.3 1.4-1 2.5-2.2 3.3v2.7h3.6c2.1-2 3.3-4.9 3.3-7.9z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.3 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.2v2.8C4 20.7 7.7 23 12 23z"/><path fill="#FBBC04" d="M5.9 14.2C5.7 13.5 5.6 12.8 5.6 12s.1-1.5.3-2.2V7H2.2C1.4 8.5 1 10.2 1 12s.4 3.5 1.2 5z"/><path fill="#EA4335" d="M12 5.5c1.6 0 3 .5 4.1 1.6l3.1-3.1C17.5 2.2 15 1 12 1 7.7 1 4 3.3 2.2 7l3.7 2.8c.9-2.6 3.3-4.3 6.1-4.3z"/></svg>
   );
 }
