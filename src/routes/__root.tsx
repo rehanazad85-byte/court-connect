@@ -119,6 +119,20 @@ function AuthSync() {
             await router.navigate({ to: "/", replace: true });
             return;
           }
+          if (event === "INITIAL_SESSION" && session?.user) {
+            const path = window.location.pathname;
+            const stored = window.sessionStorage.getItem("knox_auth_redirect");
+            if (stored) {
+              const { resolveLandingTarget } = await import("@/lib/auth-redirect");
+              window.sessionStorage.removeItem("knox_auth_redirect");
+              const target = await resolveLandingTarget(stored);
+              await snapshotAuthDebug("auth callback restored session", { path, stored, target });
+              if (target && window.location.pathname !== target) {
+                await router.navigate({ href: target, replace: true });
+              }
+            }
+            return;
+          }
           // Only auto-redirect on a real sign-in, and only from auth pages.
           // INITIAL_SESSION fires on every mount and must NOT navigate the
           // user away from their current page — that caused a flicker loop
