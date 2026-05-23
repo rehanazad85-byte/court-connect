@@ -1,11 +1,13 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { Suspense, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Calendar, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
 import { PendingScreen } from "@/components/PendingScreen";
+import { AuthDebugPanel } from "@/components/AuthDebugPanel";
+import { logAuthDebug } from "@/lib/auth-debug";
 import {
   listMyVenues,
   listVendorBookings,
@@ -21,34 +23,108 @@ import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
 
-const rolesQuery = queryOptions({ queryKey: ["my-roles"], queryFn: () => myRoles() });
 const myVenuesQuery = queryOptions({ queryKey: ["my-venues"], queryFn: () => listMyVenues() });
 const vendorBookingsQuery = queryOptions({
   queryKey: ["vendor-bookings"],
   queryFn: () => listVendorBookings(),
 });
 
+function rolesQueryOptions(ready: boolean) {
+  return { queryKey: ["my-roles"], queryFn: () => myRoles(), enabled: ready };
+}
+
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
-  beforeLoad: async ({ location }) => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session?.user)
-      throw redirect({ to: "/login", search: { redirect: location.pathname } });
-  },
-  loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
-  pendingComponent: () => <PendingScreen label="Loading vendor dashboard…" />,
+  pendingComponent: () => <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>,
   pendingMs: 0,
-  component: () => (
-    <Suspense fallback={<PendingScreen label="Loading vendor dashboard…" />}>
-      <VendorPage />
-    </Suspense>
+  errorComponent: ({ error }) => (
+    <PhoneShell>
+      <div className="px-5 pt-10">
+        <h1 className="text-xl font-bold">Vendor dashboard could not load</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "Unknown vendor auth error"}
+        </p>
+      </div>
+      <AuthDebugPanel title="Vendor auth debug" />
+    </PhoneShell>
   ),
+  component: VendorAuthGate,
 });
+
+function VendorAuthGate() {
+  const nav = useNavigate();
+  const [state, setState] = useState<"checking" | "allowed" | "redirecting">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      logAuthDebug("vendor guard: checking", {
+        route: window.location.pathname + window.location.search,
+        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
+        authLoadingState: "checking session",
+      });
+      const { data, error } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (!data.session?.user) {
+        logAuthDebug("vendor guard: redirecting to login", {
+          route: window.location.pathname + window.location.search,
+          storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
+          sessionExists: Boolean(data.session),
+          userIdExists: Boolean(data.session?.user?.id),
+          authError: error?.message ?? null,
+          reason: error?.message ?? "No locally restored session/user for /vendor",
+          redirectTo: "/login",
+          redirectSearch: { redirect: "/vendor" },
+        });
+        setState("redirecting");
+        await nav({ to: "/login", search: { redirect: "/vendor" }, replace: true });
+        return;
+      }
+      logAuthDebug("vendor guard: allowing", {
+        route: window.location.pathname + window.location.search,
+        sessionExists: true,
+        userIdExists: Boolean(data.session.user.id),
+        userId: data.session.user.id,
+      });
+      setState("allowed");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [nav]);
+
+  if (state !== "allowed") {
+    return <><PendingScreen label={state === "redirecting" ? "Opening sign in…" : "Checking vendor session…"} /><AuthDebugPanel title="Vendor auth debug" /></>;
+  }
+
+  return <VendorPage />;
+}
 
 function VendorPage() {
   const qc = useQueryClient();
   const claim = useServerFn(claimVendor);
-  const { data: roles } = useSuspenseQuery(rolesQuery);
+  const rolesResult = useQuery(rolesQueryOptions(true));
+  if (rolesResult.isLoading) {
+    return <><PendingScreen label="Loading vendor roles…" /><AuthDebugPanel title="Vendor auth debug" /></>;
+  }
+  if (rolesResult.error) {
+    logAuthDebug("vendor roles failed", {
+      route: window.location.pathname + window.location.search,
+      authError: rolesResult.error instanceof Error ? rolesResult.error.message : String(rolesResult.error),
+    });
+    return (
+      <PhoneShell>
+        <div className="px-5 pt-10">
+          <h1 className="text-xl font-bold">Vendor dashboard could not load</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {rolesResult.error instanceof Error ? rolesResult.error.message : "Unable to load vendor roles"}
+          </p>
+        </div>
+        <AuthDebugPanel title="Vendor auth debug" />
+      </PhoneShell>
+    );
+  }
+  const roles = rolesResult.data ?? { roles: [] };
   const isVendor = roles.roles.includes("vendor");
 
   if (!isVendor) {
@@ -78,6 +154,7 @@ function VendorPage() {
             Become a vendor
           </button>
         </div>
+        <AuthDebugPanel title="Vendor auth debug" />
       </PhoneShell>
     );
   }
@@ -94,13 +171,36 @@ function VendorDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const now = Date.now();
-  const upcoming = bookings.data.bookings.filter(
+  if (venues.error || bookings.error) {
+    const error = venues.error ?? bookings.error;
+    logAuthDebug("vendor dashboard data failed", {
+      route: window.location.pathname + window.location.search,
+      authError: error instanceof Error ? error.message : String(error),
+    });
+    return (
+      <PhoneShell>
+        <div className="px-5 pt-10">
+          <h1 className="text-xl font-bold">Vendor dashboard could not load</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Unable to load vendor data"}
+          </p>
+        </div>
+        <AuthDebugPanel title="Vendor auth debug" />
+      </PhoneShell>
+    );
+  }
+
+  if (venues.isLoading || bookings.isLoading) {
+    return <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>;
+  }
+
+  const upcoming = (bookings.data?.bookings ?? []).filter(
     (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now,
   );
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
   const today = upcoming.filter((b) => new Date(b.starts_at).getTime() <= todayEnd.getTime());
-  const revenue7d = bookings.data.bookings
+  const revenue7d = (bookings.data?.bookings ?? [])
     .filter(
       (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now - 7 * 86400000,
     )
@@ -143,12 +243,12 @@ function VendorDashboard() {
         {showCreate && <CreateVenueForm onDone={() => setShowCreate(false)} />}
 
         <div className="mt-3 space-y-2">
-          {venues.data.venues.length === 0 && (
+          {(venues.data?.venues ?? []).length === 0 && (
             <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
               No venues yet. Tap "New".
             </div>
           )}
-          {venues.data.venues.map((v) => (
+          {(venues.data?.venues ?? []).map((v) => (
             <div key={v.id} className="rounded-2xl bg-card p-3 shadow-soft">
               <div className="flex items-center gap-3">
                 {v.cover_image && (
@@ -207,7 +307,7 @@ function VendorDashboard() {
             </div>
           )}
           {upcoming.slice(0, 20).map((b) => {
-            const v = bookings.data.venues.find((x) => x.id === b.venue_id);
+            const v = (bookings.data?.venues ?? []).find((x) => x.id === b.venue_id);
             return (
               <div
                 key={b.id}
@@ -231,6 +331,7 @@ function VendorDashboard() {
           })}
         </div>
       </div>
+      <AuthDebugPanel title="Vendor auth debug" />
     </PhoneShell>
   );
 }
