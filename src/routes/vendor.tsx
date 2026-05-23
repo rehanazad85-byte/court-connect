@@ -10,6 +10,7 @@ import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue, se
 import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
+import { NumberField } from "@/components/form/NumberField";
 
 const rolesQuery = queryOptions({ queryKey: ["my-roles"], queryFn: () => myRoles() });
 const myVenuesQuery = queryOptions({ queryKey: ["my-venues"], queryFn: () => listMyVenues() });
