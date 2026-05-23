@@ -2,7 +2,6 @@ import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-ro
 import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { resolveLandingTarget, safeRedirectTarget } from "@/lib/auth-redirect";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
@@ -62,36 +61,25 @@ function LoginPage() {
   const onGoogle = async () => {
     setBusy(true);
     setAuthError(null);
+    let startedRedirect = false;
     try {
-      window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
+      const returnTarget = safeRedirectTarget(search.redirect);
+      const redirectTo = window.location.origin;
+      window.sessionStorage.setItem("knox_auth_redirect", returnTarget);
       await snapshotAuthDebug("google login started", {
         requestedRedirect: search.redirect ?? null,
         storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
-        redirectUri: window.location.origin,
+        redirectTo,
       });
-      const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (res?.error) {
-        logAuthDebug("google login failed", { authError: res.error.message ?? "Sign-in failed" });
-        setAuthError(res.error.message ?? "Sign-in failed");
-        return toast.error(res.error.message ?? "Sign-in failed");
-      }
-      if (res?.redirected) return; // browser will navigate
-      const session = await waitForRestoredSession();
-      if (!session) {
-        const message = "Google returned, but Knox could not restore the Supabase session.";
-        await snapshotAuthDebug("google login failed: session not restored", { authError: message });
-        setAuthError(message);
-        return toast.error(message);
-      }
-      const target = await resolveLandingTarget(search.redirect);
-      await snapshotAuthDebug("google login returned tokens", { target, userId: session.user.id });
-      nav({ href: target, replace: true });
+      startedRedirect = true;
+      logAuthDebug("google login redirecting full page", { redirectTo, returnTarget });
+      navigateToOAuthUrl(createGoogleOAuthUrl(redirectTo));
     } catch (e) {
       logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
       setAuthError(e instanceof Error ? e.message : "Google sign-in failed");
       toast.error(e instanceof Error ? e.message : "Google sign-in failed");
     } finally {
-      setBusy(false);
+      if (!startedRedirect) setBusy(false);
     }
   };
 
@@ -131,14 +119,35 @@ function LoginPage() {
   );
 }
 
-async function waitForRestoredSession(timeoutMs = 4000) {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) return data.session;
-    await new Promise((resolve) => window.setTimeout(resolve, 100));
+function navigateToOAuthUrl(url: string) {
+  try {
+    if (window.top && window.top !== window.self) {
+      window.top.location.assign(url);
+      return;
+    }
+  } catch {
+    // Cross-origin preview frames may block top navigation; fall back to this frame.
   }
-  return null;
+  window.location.assign(url);
+}
+
+function createGoogleOAuthUrl(redirectTo: string) {
+  const params = new URLSearchParams({
+    provider: "google",
+    redirect_uri: redirectTo,
+    state: createOAuthState(),
+    prompt: "select_account",
+  });
+  return `${window.location.origin}/~oauth/initiate?${params.toString()}`;
+}
+
+function createOAuthState() {
+  if (window.crypto?.getRandomValues) {
+    return Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }
 
 function GoogleIcon() {
