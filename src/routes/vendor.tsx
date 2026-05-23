@@ -171,13 +171,36 @@ function VendorDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const now = Date.now();
-  const upcoming = bookings.data.bookings.filter(
+  if (venues.error || bookings.error) {
+    const error = venues.error ?? bookings.error;
+    logAuthDebug("vendor dashboard data failed", {
+      route: window.location.pathname + window.location.search,
+      authError: error instanceof Error ? error.message : String(error),
+    });
+    return (
+      <PhoneShell>
+        <div className="px-5 pt-10">
+          <h1 className="text-xl font-bold">Vendor dashboard could not load</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Unable to load vendor data"}
+          </p>
+        </div>
+        <AuthDebugPanel title="Vendor auth debug" />
+      </PhoneShell>
+    );
+  }
+
+  if (venues.isLoading || bookings.isLoading) {
+    return <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>;
+  }
+
+  const upcoming = (bookings.data?.bookings ?? []).filter(
     (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now,
   );
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
   const today = upcoming.filter((b) => new Date(b.starts_at).getTime() <= todayEnd.getTime());
-  const revenue7d = bookings.data.bookings
+  const revenue7d = (bookings.data?.bookings ?? [])
     .filter(
       (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now - 7 * 86400000,
     )
@@ -220,12 +243,12 @@ function VendorDashboard() {
         {showCreate && <CreateVenueForm onDone={() => setShowCreate(false)} />}
 
         <div className="mt-3 space-y-2">
-          {venues.data.venues.length === 0 && (
+          {(venues.data?.venues ?? []).length === 0 && (
             <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
               No venues yet. Tap "New".
             </div>
           )}
-          {venues.data.venues.map((v) => (
+          {(venues.data?.venues ?? []).map((v) => (
             <div key={v.id} className="rounded-2xl bg-card p-3 shadow-soft">
               <div className="flex items-center gap-3">
                 {v.cover_image && (
@@ -284,7 +307,7 @@ function VendorDashboard() {
             </div>
           )}
           {upcoming.slice(0, 20).map((b) => {
-            const v = bookings.data.venues.find((x) => x.id === b.venue_id);
+            const v = (bookings.data?.venues ?? []).find((x) => x.id === b.venue_id);
             return (
               <div
                 key={b.id}
