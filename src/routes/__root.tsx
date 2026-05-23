@@ -100,15 +100,28 @@ function AuthSync() {
   const router = useRouter();
   const qc = useQueryClient();
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const target = window.sessionStorage.getItem("knox_auth_redirect");
-      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user && target?.startsWith("/") && !target.startsWith("//") && !target.startsWith("/~oauth")) {
-        window.sessionStorage.removeItem("knox_auth_redirect");
-        router.navigate({ href: target, replace: true });
+    const resolveAfterSignIn = async (storedTarget: string | null) => {
+      if (storedTarget && storedTarget.startsWith("/") && !storedTarget.startsWith("//") && !storedTarget.startsWith("/~oauth")) {
+        return storedTarget;
       }
-      // Only react to real auth transitions. INITIAL_SESSION and TOKEN_REFRESHED
-      // fire on every page load / refresh and would cause an invalidation loop
-      // with route beforeLoad guards that call supabase.auth.getUser().
+      try {
+        const { data } = await supabase.from("user_roles").select("role");
+        if (data?.some((r) => r.role === "vendor")) return "/vendor";
+      } catch {
+        // ignore — fall through
+      }
+      return null;
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
+        const stored = window.sessionStorage.getItem("knox_auth_redirect");
+        window.sessionStorage.removeItem("knox_auth_redirect");
+        const target = await resolveAfterSignIn(stored);
+        if (target && window.location.pathname !== target) {
+          router.navigate({ href: target, replace: true });
+        }
+      }
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       qc.invalidateQueries();
