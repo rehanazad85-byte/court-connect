@@ -115,9 +115,9 @@ function AuthSync() {
           // between /login and /vendor.
           if (event === "SIGNED_IN" && session?.user) {
             const path = window.location.pathname;
-            if (path === "/login" || path === "/signup") {
+            const stored = window.sessionStorage.getItem("knox_auth_redirect");
+            if (stored || path === "/login" || path === "/signup") {
               const { resolveLandingTarget } = await import("@/lib/auth-redirect");
-              const stored = window.sessionStorage.getItem("knox_auth_redirect");
               window.sessionStorage.removeItem("knox_auth_redirect");
               const target = await resolveLandingTarget(stored);
               if (target && window.location.pathname !== target) {
