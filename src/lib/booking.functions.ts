@@ -291,23 +291,33 @@ export const cancelBooking = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: existing, error: se } = await supabase
-      .from("bookings")
-      .select("id, starts_at, user_id, status")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (se) throw new Error(se.message);
-    if (!existing || existing.user_id !== userId) throw new Error("Booking not found");
-    if (existing.status === "cancelled") return { ok: true };
-    if (new Date(existing.starts_at).getTime() - Date.now() < 60 * 60 * 1000) {
-      throw new Error("Cannot cancel within 1 hour of start");
-    }
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: "cancelled" })
-      .eq("id", data.id);
+    const { supabase } = context;
+    const { error } = await supabase.rpc("cancel_booking", { _booking_id: data.id });
     if (error) throw new Error(error.message);
-    await supabase.from("booking_resources").update({ status: "cancelled" }).eq("booking_id", data.id);
     return { ok: true };
+  });
+
+export const getBookingByReference = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { reference: string }) =>
+    z.object({ reference: z.string().min(3).max(40) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: booking, error } = await supabase
+      .from("bookings")
+      .select("id, reference, status, starts_at, ends_at, players, total_pence, service_fee_pence, venue_id, venues(name, cover_image, city, address)")
+      .eq("reference", data.reference)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!booking) return { booking: null, resources: [] };
+    const { data: brs } = await supabase
+      .from("booking_resources")
+      .select("resource_id, resources(name)")
+      .eq("booking_id", booking.id);
+    return {
+      booking,
+      resources: (brs ?? []).map((r: any) => ({ id: r.resource_id, name: r.resources?.name as string })),
+    };
   });
