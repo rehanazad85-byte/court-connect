@@ -264,7 +264,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="# of resources"><input type="number" min={1} max={40} className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: +e.target.value })} /></Field>
+        <Field label="# of resources"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
         <Field label="Resource kind">
           <select className={cls} value={form.resourceKind} onChange={(e) => setForm({ ...form, resourceKind: e.target.value as any })}>
             <option value="court">Court</option><option value="table">Table</option>
