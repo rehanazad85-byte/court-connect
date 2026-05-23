@@ -224,13 +224,8 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     }
   };
 
-  const Input = (p: { label: string; children: React.ReactNode }) => (
-    <label className="block">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{p.label}</span>
-      <div className="mt-1">{p.children}</div>
-    </label>
-  );
   const cls = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
+
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-card p-4">
