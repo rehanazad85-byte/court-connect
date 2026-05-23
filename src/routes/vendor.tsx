@@ -23,12 +23,15 @@ import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
 
-const rolesQuery = queryOptions({ queryKey: ["my-roles"], queryFn: () => myRoles() });
 const myVenuesQuery = queryOptions({ queryKey: ["my-venues"], queryFn: () => listMyVenues() });
 const vendorBookingsQuery = queryOptions({
   queryKey: ["vendor-bookings"],
   queryFn: () => listVendorBookings(),
 });
+
+function rolesQueryOptions(ready: boolean) {
+  return { queryKey: ["my-roles"], queryFn: () => myRoles(), enabled: ready };
+}
 
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
@@ -100,7 +103,28 @@ function VendorAuthGate() {
 function VendorPage() {
   const qc = useQueryClient();
   const claim = useServerFn(claimVendor);
-  const { data: roles } = useSuspenseQuery(rolesQuery);
+  const rolesResult = useQuery(rolesQueryOptions(true));
+  if (rolesResult.isLoading) {
+    return <><PendingScreen label="Loading vendor roles…" /><AuthDebugPanel title="Vendor auth debug" /></>;
+  }
+  if (rolesResult.error) {
+    logAuthDebug("vendor roles failed", {
+      route: window.location.pathname + window.location.search,
+      authError: rolesResult.error instanceof Error ? rolesResult.error.message : String(rolesResult.error),
+    });
+    return (
+      <PhoneShell>
+        <div className="px-5 pt-10">
+          <h1 className="text-xl font-bold">Vendor dashboard could not load</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {rolesResult.error instanceof Error ? rolesResult.error.message : "Unable to load vendor roles"}
+          </p>
+        </div>
+        <AuthDebugPanel title="Vendor auth debug" />
+      </PhoneShell>
+    );
+  }
+  const roles = rolesResult.data ?? { roles: [] };
   const isVendor = roles.roles.includes("vendor");
 
   if (!isVendor) {
