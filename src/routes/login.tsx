@@ -9,8 +9,8 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({ redirect: z.string().optional() }),
   beforeLoad: async ({ search }) => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) {
       const target = await resolveLandingTarget(search.redirect);
       throw redirect({ href: target });
     }

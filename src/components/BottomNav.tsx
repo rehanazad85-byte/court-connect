@@ -11,10 +11,7 @@ const tabs = [
 
 export function BottomNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const onVendor = path === "/vendor" || path.startsWith("/vendor/");
-  const visibleTabs = onVendor
-    ? tabs.filter((t) => t.to === "/vendor" || t.to === "/profile" || t.to === "/")
-    : tabs.filter((t) => t.to !== "/vendor");
+  const visibleTabs = tabs;
   return (
     <nav className="sticky bottom-0 z-30 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
       <ul className={`mx-auto grid max-w-md`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
