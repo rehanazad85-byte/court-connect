@@ -348,7 +348,7 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-background p-3">
-      <Field label="Venue Name"><input required className={cls} value={f.name} onChange={(e) => setForm({ ...f, name: e.target.value })} /></Field>
+      <Field label="Business / Venue Name" help="This is the public name customers will see — not your personal name."><input required className={cls} value={f.name} onChange={(e) => setForm({ ...f, name: e.target.value })} /></Field>
       <Field label="City"><input className={cls} value={f.city} onChange={(e) => setForm({ ...f, city: e.target.value })} /></Field>
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={f.coverImage} onChange={(e) => setForm({ ...f, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={f.description} onChange={(e) => setForm({ ...f, description: e.target.value })} /></Field>
