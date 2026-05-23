@@ -100,7 +100,12 @@ function AuthSync() {
   const router = useRouter();
   const qc = useQueryClient();
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const target = window.sessionStorage.getItem("knox_auth_redirect");
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user && target?.startsWith("/") && !target.startsWith("//") && !target.startsWith("/~oauth")) {
+        window.sessionStorage.removeItem("knox_auth_redirect");
+        router.navigate({ href: target, replace: true });
+      }
       // Only react to real auth transitions. INITIAL_SESSION and TOKEN_REFRESHED
       // fire on every page load / refresh and would cause an invalidation loop
       // with route beforeLoad guards that call supabase.auth.getUser().
