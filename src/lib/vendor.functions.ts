@@ -15,6 +15,92 @@ export const claimVendor = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const getVenueSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { venueId: string }) =>
+    z.object({ venueId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: v, error } = await supabase
+      .from("venues")
+      .select("id, name, activity, type, city, address, description, cover_image")
+      .eq("id", data.venueId)
+      .eq("vendor_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!v) throw new Error("Venue not found");
+    const { data: oh } = await supabase
+      .from("opening_hours")
+      .select("open_min, close_min")
+      .eq("venue_id", data.venueId)
+      .order("day_of_week")
+      .limit(1);
+    const { data: pr } = await supabase
+      .from("pricing_rules")
+      .select("price_per_hour_pence")
+      .eq("venue_id", data.venueId)
+      .order("day_of_week")
+      .limit(1);
+    return {
+      venue: v,
+      openMin: oh?.[0]?.open_min ?? 420,
+      closeMin: oh?.[0]?.close_min ?? 1320,
+      pricePerHourPence: pr?.[0]?.price_per_hour_pence ?? 3000,
+    };
+  });
+
+export const updateVenueSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    venueId: string; name: string; city?: string; description?: string; coverImage?: string;
+    pricePerHourPence: number; openMin: number; closeMin: number;
+  }) =>
+    z.object({
+      venueId: z.string().uuid(),
+      name: z.string().min(1).max(120),
+      city: z.string().max(80).optional(),
+      description: z.string().max(2000).optional(),
+      coverImage: z.string().url().max(500).optional().or(z.literal("")),
+      pricePerHourPence: z.number().int().min(100).max(50000),
+      openMin: z.number().int().min(0).max(1440),
+      closeMin: z.number().int().min(0).max(1440),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (data.closeMin <= data.openMin) throw new Error("Closing must be after opening");
+    const { data: venue, error: ve } = await supabase
+      .from("venues")
+      .update({
+        name: data.name,
+        city: data.city ?? null,
+        description: data.description ?? null,
+        cover_image: data.coverImage ? data.coverImage : null,
+      })
+      .eq("id", data.venueId)
+      .eq("vendor_id", userId)
+      .select("id")
+      .single();
+    if (ve) throw new Error(ve.message);
+    if (!venue) throw new Error("Venue not found");
+
+    await supabase.from("opening_hours").delete().eq("venue_id", data.venueId);
+    await supabase.from("pricing_rules").delete().eq("venue_id", data.venueId);
+    const hours = Array.from({ length: 7 }, (_, dow) => ({
+      venue_id: data.venueId, day_of_week: dow, open_min: data.openMin, close_min: data.closeMin,
+    }));
+    const pricing = Array.from({ length: 7 }, (_, dow) => ({
+      venue_id: data.venueId, day_of_week: dow, start_min: data.openMin, end_min: data.closeMin,
+      price_per_hour_pence: data.pricePerHourPence, min_duration_min: 60, slot_step_min: 30,
+    }));
+    const { error: he } = await supabase.from("opening_hours").insert(hours);
+    if (he) throw new Error(he.message);
+    const { error: pe } = await supabase.from("pricing_rules").insert(pricing);
+    if (pe) throw new Error(pe.message);
+    return { ok: true };
+  });
+
 export const myRoles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
