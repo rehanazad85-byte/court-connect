@@ -1,10 +1,11 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Calendar, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
+import { PendingScreen } from "@/components/PendingScreen";
 import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue, setVenuePublished, getVenueSettings, updateVenueSettings } from "@/lib/vendor.functions";
 import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
@@ -21,7 +22,13 @@ export const Route = createFileRoute("/vendor")({
     if (!data.user) throw redirect({ to: "/login", search: { redirect: location.pathname } });
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
-  component: VendorPage,
+  pendingComponent: () => <PendingScreen label="Loading vendor dashboard…" />,
+  pendingMs: 0,
+  component: () => (
+    <Suspense fallback={<PendingScreen label="Loading vendor dashboard…" />}>
+      <VendorPage />
+    </Suspense>
+  ),
 });
 
 function VendorPage() {
