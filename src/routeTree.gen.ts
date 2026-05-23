@@ -19,6 +19,7 @@ import { Route as ConfirmationRouteImport } from './routes/confirmation'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VenueVenueIdRouteImport } from './routes/venue.$venueId'
+import { Route as VendorVenuesRouteImport } from './routes/vendor.venues'
 import { Route as VendorDashboardRouteImport } from './routes/vendor.dashboard'
 import { Route as ActivityActivityRouteImport } from './routes/activity.$activity'
 import { Route as VenueVenueIdCourtsRouteImport } from './routes/venue.$venueId.courts'
@@ -73,6 +74,11 @@ const VenueVenueIdRoute = VenueVenueIdRouteImport.update({
   path: '/venue/$venueId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VendorVenuesRoute = VendorVenuesRouteImport.update({
+  id: '/venues',
+  path: '/venues',
+  getParentRoute: () => VendorRoute,
+} as any)
 const VendorDashboardRoute = VendorDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/vendor': typeof VendorRouteWithChildren
   '/activity/$activity': typeof ActivityActivityRoute
   '/vendor/dashboard': typeof VendorDashboardRoute
+  '/vendor/venues': typeof VendorVenuesRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/vendor': typeof VendorRouteWithChildren
   '/activity/$activity': typeof ActivityActivityRoute
   '/vendor/dashboard': typeof VendorDashboardRoute
+  '/vendor/venues': typeof VendorVenuesRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/vendor': typeof VendorRouteWithChildren
   '/activity/$activity': typeof ActivityActivityRoute
   '/vendor/dashboard': typeof VendorDashboardRoute
+  '/vendor/venues': typeof VendorVenuesRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/vendor'
     | '/activity/$activity'
     | '/vendor/dashboard'
+    | '/vendor/venues'
     | '/venue/$venueId'
     | '/venue/$venueId/courts'
   fileRoutesByTo: FileRoutesByTo
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/vendor'
     | '/activity/$activity'
     | '/vendor/dashboard'
+    | '/vendor/venues'
     | '/venue/$venueId'
     | '/venue/$venueId/courts'
   id:
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/vendor'
     | '/activity/$activity'
     | '/vendor/dashboard'
+    | '/vendor/venues'
     | '/venue/$venueId'
     | '/venue/$venueId/courts'
   fileRoutesById: FileRoutesById
@@ -269,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VenueVenueIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vendor/venues': {
+      id: '/vendor/venues'
+      path: '/venues'
+      fullPath: '/vendor/venues'
+      preLoaderRoute: typeof VendorVenuesRouteImport
+      parentRoute: typeof VendorRoute
+    }
     '/vendor/dashboard': {
       id: '/vendor/dashboard'
       path: '/dashboard'
@@ -295,10 +314,12 @@ declare module '@tanstack/react-router' {
 
 interface VendorRouteChildren {
   VendorDashboardRoute: typeof VendorDashboardRoute
+  VendorVenuesRoute: typeof VendorVenuesRoute
 }
 
 const VendorRouteChildren: VendorRouteChildren = {
   VendorDashboardRoute: VendorDashboardRoute,
+  VendorVenuesRoute: VendorVenuesRoute,
 }
 
 const VendorRouteWithChildren =
