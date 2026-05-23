@@ -10,6 +10,7 @@ import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue, se
 import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
+import { NumberField } from "@/components/form/NumberField";
 
 const rolesQuery = queryOptions({ queryKey: ["my-roles"], queryFn: () => myRoles() });
 const myVenuesQuery = queryOptions({ queryKey: ["my-venues"], queryFn: () => listMyVenues() });
@@ -208,24 +209,24 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     city: "",
     description: "",
     coverImage: "",
-    resourceCount: "4",
+    resourceCount: 4 as number | null,
     resourceKind: "court" as "court" | "table" | "lane" | "sim" | "board",
-    pricePerHourPound: "30",
-    openHour: "7",
-    closeHour: "22",
+    pricePerHourPound: 30 as number | null,
+    openHour: 7 as number | null,
+    closeHour: 22 as number | null,
   });
 
   const sub = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const priceNum = parseFloat(form.pricePerHourPound);
-      const resCount = parseInt(form.resourceCount, 10);
-      const openH = parseInt(form.openHour, 10);
-      const closeH = parseInt(form.closeHour, 10);
-      if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price");
-      if (!Number.isFinite(resCount) || resCount < 1) throw new Error("Enter number of resources");
-      if (!Number.isFinite(openH) || !Number.isFinite(closeH) || closeH <= openH) throw new Error("Enter valid opening/closing hours");
+      const priceNum = form.pricePerHourPound;
+      const resCount = form.resourceCount;
+      const openH = form.openHour;
+      const closeH = form.closeHour;
+      if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
+      if (resCount == null || resCount < 1) throw new Error("Enter number of resources");
+      if (openH == null || closeH == null || closeH <= openH) throw new Error("Enter valid opening/closing hours");
       await create({
         data: {
           name: form.name,
@@ -276,7 +277,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="# of resources"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="# of resources"><NumberField className={cls} min={1} max={40} value={form.resourceCount} onChange={(v) => setForm({ ...form, resourceCount: v })} /></Field>
         <Field label="Resource kind">
           <select className={cls} value={form.resourceKind} onChange={(e) => setForm({ ...form, resourceKind: e.target.value as any })}>
             <option value="court">Court</option><option value="table">Table</option>
@@ -285,9 +286,9 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr"><input type="text" inputMode="decimal" className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: e.target.value.replace(/[^0-9.]/g, "") })} /></Field>
-        <Field label="Opens (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.openHour} onChange={(e) => setForm({ ...form, openHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
-        <Field label="Closes (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.closeHour} onChange={(e) => setForm({ ...form, closeHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="£ / hr"><NumberField className={cls} allowDecimal min={1} max={500} value={form.pricePerHourPound} onChange={(v) => setForm({ ...form, pricePerHourPound: v })} /></Field>
+        <Field label="Opens (hr)"><NumberField className={cls} min={0} max={23} value={form.openHour} onChange={(v) => setForm({ ...form, openHour: v })} /></Field>
+        <Field label="Closes (hr)"><NumberField className={cls} min={1} max={24} value={form.closeHour} onChange={(v) => setForm({ ...form, closeHour: v })} /></Field>
       </div>
       <button disabled={busy} className="h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Creating..." : "Create venue"}</button>
     </form>
@@ -302,20 +303,21 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
     queryKey: ["venue-settings", venueId],
     queryFn: () => getFn({ data: { venueId } }),
   });
-  const [form, setForm] = useState<{ name: string; city: string; description: string; coverImage: string; pricePerHourPound: string; openHour: string; closeHour: string } | null>(null);
+  type FormState = { name: string; city: string; description: string; coverImage: string; pricePerHourPound: number | null; openHour: number | null; closeHour: number | null };
+  const [form, setForm] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (settingsQuery.isLoading) return <div className="mt-3 text-xs text-muted-foreground">Loading...</div>;
   if (settingsQuery.error) return <div className="mt-3 text-xs text-destructive">Failed to load</div>;
   const s = settingsQuery.data!;
-  const f = form ?? {
+  const f: FormState = form ?? {
     name: s.venue.name,
     city: s.venue.city ?? "",
     description: s.venue.description ?? "",
     coverImage: s.venue.cover_image ?? "",
-    pricePerHourPound: (s.pricePerHourPence / 100).toString(),
-    openHour: Math.floor(s.openMin / 60).toString(),
-    closeHour: Math.floor(s.closeMin / 60).toString(),
+    pricePerHourPound: s.pricePerHourPence / 100,
+    openHour: Math.floor(s.openMin / 60),
+    closeHour: Math.floor(s.closeMin / 60),
   };
 
   const cls = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
@@ -324,11 +326,11 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
     e.preventDefault();
     setBusy(true);
     try {
-      const priceNum = parseFloat(f.pricePerHourPound);
-      const openH = parseInt(f.openHour, 10);
-      const closeH = parseInt(f.closeHour, 10);
-      if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price");
-      if (!Number.isFinite(openH) || !Number.isFinite(closeH) || closeH <= openH) throw new Error("Enter valid opening/closing hours");
+      const priceNum = f.pricePerHourPound;
+      const openH = f.openHour;
+      const closeH = f.closeHour;
+      if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
+      if (openH == null || closeH == null || closeH <= openH) throw new Error("Enter valid opening/closing hours");
       await updateFn({
         data: {
           venueId,
@@ -360,9 +362,9 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={f.coverImage} onChange={(e) => setForm({ ...f, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={f.description} onChange={(e) => setForm({ ...f, description: e.target.value })} /></Field>
       <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr"><input type="text" inputMode="decimal" className={cls} value={f.pricePerHourPound} onChange={(e) => setForm({ ...f, pricePerHourPound: e.target.value.replace(/[^0-9.]/g, "") })} /></Field>
-        <Field label="Opens (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={f.openHour} onChange={(e) => setForm({ ...f, openHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
-        <Field label="Closes (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={f.closeHour} onChange={(e) => setForm({ ...f, closeHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="£ / hr"><NumberField className={cls} allowDecimal min={1} max={500} value={f.pricePerHourPound} onChange={(v) => setForm({ ...f, pricePerHourPound: v })} /></Field>
+        <Field label="Opens (hr)"><NumberField className={cls} min={0} max={23} value={f.openHour} onChange={(v) => setForm({ ...f, openHour: v })} /></Field>
+        <Field label="Closes (hr)"><NumberField className={cls} min={1} max={24} value={f.closeHour} onChange={(v) => setForm({ ...f, closeHour: v })} /></Field>
       </div>
       <button disabled={busy} className="h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Saving..." : "Save changes"}</button>
     </form>

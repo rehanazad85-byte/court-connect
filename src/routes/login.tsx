@@ -3,20 +3,8 @@ import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { resolveLandingTarget, safeRedirectTarget } from "@/lib/auth-redirect";
 import { toast } from "sonner";
-
-async function resolveLandingTarget(explicitRedirect?: string): Promise<string> {
-  const safe = safeRedirectTarget(explicitRedirect);
-  if (safe !== "/") return safe;
-  // No explicit destination — route vendors to their dashboard.
-  try {
-    const { data } = await supabase.from("user_roles").select("role");
-    if (data?.some((r) => r.role === "vendor")) return "/vendor";
-  } catch {
-    // ignore — fall back to /
-  }
-  return "/";
-}
 
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({ redirect: z.string().optional() }),
@@ -31,11 +19,6 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-function safeRedirectTarget(value?: string) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/~oauth")) return "/";
-  return value;
-}
-
 function LoginPage() {
   const search = Route.useSearch();
   const nav = useNavigate();
@@ -46,35 +29,29 @@ function LoginPage() {
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setBusy(false); return toast.error(error.message); }
-    const target = await resolveLandingTarget(search.redirect);
-    setBusy(false);
-    nav({ href: target, replace: true });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return toast.error(error.message);
+      const target = await resolveLandingTarget(search.redirect);
+      nav({ href: target, replace: true });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const onGoogle = async () => {
     setBusy(true);
-    const timeout = window.setTimeout(() => {
-      setBusy(false);
-      toast.error("Google sign-in didn't open. Please try again or open the preview in a new tab.");
-    }, 15000);
     try {
       window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
       const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      window.clearTimeout(timeout);
-      if (res?.error) { setBusy(false); return toast.error(res.error.message ?? "Sign-in failed"); }
-      if (!res?.redirected) {
-        const target = await resolveLandingTarget(search.redirect);
-        setBusy(false);
-        nav({ href: target, replace: true });
-      } else {
-        setBusy(false);
-      }
+      if (res?.error) return toast.error(res.error.message ?? "Sign-in failed");
+      if (res?.redirected) return; // browser will navigate
+      const target = await resolveLandingTarget(search.redirect);
+      nav({ href: target, replace: true });
     } catch (e) {
-      window.clearTimeout(timeout);
-      setBusy(false);
       toast.error(e instanceof Error ? e.message : "Google sign-in failed");
+    } finally {
+      setBusy(false);
     }
   };
 
