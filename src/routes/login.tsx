@@ -9,7 +9,8 @@ export const Route = createFileRoute("/login")({
   validateSearch: z.object({ redirect: z.string().optional() }),
   beforeLoad: async ({ search }) => {
     const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: search.redirect ?? "/" });
+    const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
+    if (data.user) throw redirect({ to: target });
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
@@ -33,7 +34,8 @@ function LoginPage() {
 
   const onGoogle = async () => {
     setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + (search.redirect ?? "/") });
+    // Return to this login page so beforeLoad can forward to `redirect` once the session is set.
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href });
     setBusy(false);
     if (res?.error) toast.error(res.error.message ?? "Sign-in failed");
   };

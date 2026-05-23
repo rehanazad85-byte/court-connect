@@ -18,7 +18,7 @@ export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
   beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getUser();
-    if (!data.user) throw redirect({ to: "/login", search: { redirect: location.href } });
+    if (!data.user) throw redirect({ to: "/login", search: { redirect: location.pathname } });
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(rolesQuery),
   component: VendorPage,
