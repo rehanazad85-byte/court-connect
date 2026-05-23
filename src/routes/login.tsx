@@ -9,7 +9,8 @@ export const Route = createFileRoute("/login")({
   validateSearch: z.object({ redirect: z.string().optional() }),
   beforeLoad: async ({ search }) => {
     const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: search.redirect ?? "/" });
+    const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
+    if (data.user) throw redirect({ to: target });
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
