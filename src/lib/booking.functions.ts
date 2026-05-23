@@ -321,3 +321,85 @@ export const getBookingByReference = createServerFn({ method: "GET" })
       resources: (brs ?? []).map((r: any) => ({ id: r.resource_id, name: r.resources?.name as string })),
     };
   });
+
+// ---------- Auto-assign + book in one call ----------
+
+export const reserveAnyAvailable = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { venueId: string; startsAtISO: string; durationMin: number; players: number }) =>
+    z.object({
+      venueId: z.string().uuid(),
+      startsAtISO: z.string(),
+      durationMin: z.number().int().min(30).max(8 * 60),
+      players: z.number().int().min(1).max(64),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const start = new Date(data.startsAtISO);
+    const end = new Date(start.getTime() + data.durationMin * 60_000);
+    const dow = start.getUTCDay();
+    const startMin = minsOfDay(start);
+
+    // Pricing
+    const { data: pricing, error: pe } = await supabase
+      .from("pricing_rules")
+      .select("day_of_week, start_min, end_min, price_per_hour_pence, min_duration_min")
+      .eq("venue_id", data.venueId);
+    if (pe) throw new Error(pe.message);
+    const rule = (pricing ?? []).find(
+      (p) => p.day_of_week === dow && startMin >= p.start_min && startMin < p.end_min,
+    );
+    if (!rule) return { ok: false as const, reason: "No pricing for selected time" };
+    if (data.durationMin < rule.min_duration_min) return { ok: false as const, reason: "Slot too short" };
+
+    // Candidate resources + conflicts
+    const [{ data: resources }, { data: existing }, { data: blackouts }] = await Promise.all([
+      supabase.from("resources").select("id, name, sort_order").eq("venue_id", data.venueId).eq("is_active", true).order("sort_order"),
+      supabase.from("booking_resources").select("resource_id, starts_at, ends_at, status").lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()),
+      supabase.from("blackouts").select("resource_id, starts_at, ends_at").eq("venue_id", data.venueId).lt("starts_at", end.toISOString()).gt("ends_at", start.toISOString()),
+    ]);
+    if (!resources || resources.length === 0) {
+      return { ok: false as const, reason: "This venue has no courts configured" };
+    }
+
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const pick = resources.find((r) => {
+      const busy = (existing ?? []).some(
+        (b) => b.status === "confirmed" && b.resource_id === r.id &&
+          new Date(b.starts_at).getTime() < endMs && new Date(b.ends_at).getTime() > startMs,
+      );
+      if (busy) return false;
+      const blocked = (blackouts ?? []).some(
+        (bo) => (bo.resource_id === null || bo.resource_id === r.id) &&
+          new Date(bo.starts_at).getTime() < endMs && new Date(bo.ends_at).getTime() > startMs,
+      );
+      return !blocked;
+    });
+
+    if (!pick) return { ok: false as const, reason: "No courts available for that slot. Try another time." };
+
+    const subtotal = Math.round((rule.price_per_hour_pence * data.durationMin) / 60);
+    const fee = Math.round(subtotal * SERVICE_FEE_RATE);
+    const total = subtotal + fee;
+
+    const { data: rpc, error } = await supabase.rpc("create_booking", {
+      _venue_id: data.venueId,
+      _starts_at: start.toISOString(),
+      _ends_at: end.toISOString(),
+      _resource_ids: [pick.id],
+      _players: data.players,
+      _total_pence: total,
+      _service_fee_pence: fee,
+    });
+    if (error) return { ok: false as const, reason: error.message };
+    const row = Array.isArray(rpc) ? rpc[0] : rpc;
+    return {
+      ok: true as const,
+      id: row?.id as string,
+      reference: row?.reference as string,
+      totalPence: total,
+      resourceName: pick.name,
+    };
+  });
