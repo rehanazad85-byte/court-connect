@@ -1,112 +1,73 @@
-# Knox — Core Booking System (Stripe parked)
+# Stabilisation & Refactor Pass
 
-Goal: replace the mock flow with a real multi-vendor booking engine backed by Lovable Cloud. Payments stay stubbed; the "Pay" button just creates a `confirmed` booking for now and can later be swapped to "Pay with Stripe".
+Goal: clean up the MVP without adding new features. Each section below is scoped, low-risk, and verifiable in the preview.
 
-## 1. Database schema
+## 1. Auth & session stability
 
-All tables RLS-enabled. Roles live in a dedicated `user_roles` table (never on profiles) checked via a `SECURITY DEFINER` `has_role()` function.
+- Centralise auth state in a single `useAuth()` hook backed by one `onAuthStateChange` listener (already in `__root.tsx`). Remove ad-hoc `supabase.auth.getUser()` calls scattered across routes.
+- Replace `resolveLandingTarget` duplication in `login.tsx` and `__root.tsx` with one shared helper in `src/lib/auth-redirect.ts`.
+- Drop the 15s timeout hack in `onGoogle`; rely on `lovable.auth.signInWithOAuth` result + a single inline `busy` state.
+- Ensure `SIGNED_OUT` clears query cache (already done) and navigates to `/` to avoid stuck protected routes.
+- Keep `PendingScreen` as the only loading fallback; add it to vendor child routes consistently.
 
-```text
-profiles            (user_id PK→auth.users, display_name, phone, avatar_url)
-user_roles          (user_id, role: 'customer'|'vendor'|'admin')  UNIQUE(user_id, role)
+## 2. Routing & navigation
 
-venues              (id, vendor_id→auth.users, slug, name, activity,
-                     type 'Indoor'|'Outdoor', address, city, lat, lng,
-                     cover_image, description, is_published, created_at)
-venue_images        (id, venue_id, url, sort_order)
+- Introduce `src/routes/_authenticated.tsx` pathless layout for vendor routes; move `vendor.tsx` under it as `_authenticated/vendor.tsx`. Customer routes stay public.
+- Delete the redundant `vendor.dashboard.tsx` / `vendor.venues.tsx` redirect stubs.
+- Make `BottomNav` hide on vendor routes and vice-versa so flows don't bleed into each other.
 
-resources           (id, venue_id, name, kind 'court'|'table'|'lane'|'sim',
-                     is_active, sort_order)
-                    -- one row per bookable unit (Court 1, Table 3…)
+## 3. Forms & inputs
 
-pricing_rules       (id, venue_id, day_of_week 0–6, start_min, end_min,
-                     price_per_hour_pence, min_duration_min, slot_step_min)
-                    -- peak/off-peak; lookups resolve by venue + dow + time
+- Add `src/components/form/NumberField.tsx` and `TimeField.tsx`: controlled string state internally, emit number on blur, allow empty while typing (fixes the "0 can't be deleted" bug everywhere).
+- Use them in the venue create form and venue settings form.
+- Add a shared `<FormField label helper>` wrapper so labels/helper text are consistent (e.g. "Venue Name" + helper).
 
-opening_hours       (id, venue_id, day_of_week, open_min, close_min)
-blackouts           (id, venue_id, resource_id NULL, starts_at, ends_at, reason)
-                    -- vendor closures / maintenance
+## 4. Vendor dashboard structure
 
-bookings            (id, user_id, venue_id, status 'pending'|'confirmed'|'cancelled',
-                     starts_at timestamptz, ends_at timestamptz,
-                     players, total_pence, service_fee_pence,
-                     reference text UNIQUE, created_at)
-booking_resources   (booking_id, resource_id)  PK(booking_id, resource_id)
-                    -- EXCLUDE constraint with tstzrange prevents double-booking
-                    -- the same resource for overlapping time windows
-```
+- Split `vendor.tsx` into:
+  - `vendor/VendorShell.tsx` (tabs + layout)
+  - `vendor/VenueList.tsx`
+  - `vendor/VenueForm.tsx` (shared by create + edit)
+  - `vendor/BookingsList.tsx`
+- One server-fn module `vendor.functions.ts` already exists; keep as-is but consolidate `getVenueSettings`/`updateVenueSettings`/`createVenue` to share a `VenueInput` zod schema.
 
-Key integrity rules enforced in Postgres (not just the UI):
-- `booking_resources` uses a GiST `EXCLUDE` constraint on `(resource_id WITH =, tstzrange(starts_at, ends_at) WITH &&)` joined to bookings, so two confirmed bookings can never overlap on the same court/table.
-- A `create_booking(...)` SQL function does the whole thing in one transaction: validate opening hours + pricing + capacity, insert booking + resources, return reference. Capacity races become impossible.
-- `handle_new_user()` trigger creates a `profiles` row + grants `'customer'` role on signup.
+## 5. Booking flow simplification
 
-## 2. Auth & roles
+- In the venue detail/date-time screen, replace the "View Courts" CTA with **"Continue Booking"**.
+- On click, call a new server fn `reserveAnyResource({ venueId, startsAt, endsAt, players })` that:
+  - lists active resources for the venue
+  - checks `booking_resources` overlap server-side
+  - picks the first free resource and calls `create_booking` RPC with it
+  - returns `{ bookingId, reference }` or `{ unavailable: true }`
+- On success: navigate straight to `/confirmation?ref=…`.
+- On unavailable: inline message "No courts available for this slot — try another time."
+- Remove the manual courts-picker route from the customer flow (keep file but redirect to detail for now to avoid breaking links).
 
-- Email/password + Google sign-in (Lovable Cloud managed).
-- Routes split into `_authenticated/` (customers must log in to book) and `_vendor/` (requires `vendor` role).
-- `/login`, `/signup`, `/reset-password` public routes.
+## 6. Error handling & UX polish
 
-## 3. Booking engine (server-side)
+- Audit every route loader: wrap server-fn calls so loaders never throw raw `Unauthorized` (return `{ error }` shape, render empty state).
+- Confirm root `errorComponent` + `PendingScreen` cover every route; add `notFoundComponent` where missing.
+- Tidy toast usage: one `toast.error(message)` helper that falls back to "Something went wrong".
+- BottomNav: ensure safe-area padding + active state; verify on 390px viewport.
 
-TanStack server functions in `src/lib/booking.functions.ts`:
-- `listVenues({ activity, city })` — public, reads published venues.
-- `getVenue({ id })` — public; returns venue, images, resources, opening hours.
-- `getAvailability({ venueId, date, durationMin })` — computes free slots from opening hours − blackouts − existing bookings, returns `{ time, availableResourceIds[] }[]`.
-- `quote({ venueId, startsAt, durationMin, resourceIds[] })` — server-side price using `pricing_rules`. UI never trusts client-computed totals.
-- `createBooking({ ... })` — auth-required; calls the `create_booking` SQL function; returns reference.
-- `myBookings()` — auth-required; upcoming + past.
-- `cancelBooking({ id })` — auth-required, owner only, ≥X hours before start.
+## 7. Cleanup
 
-## 4. Vendor rules & dashboard (`/vendor/*`)
+- Remove unused imports, dead `vendor.dashboard.tsx` / `vendor.venues.tsx` redirects, and duplicated slug/labelFor helpers (move to `src/lib/venue-utils.ts`).
+- Run a typecheck pass via the build.
 
-Pages, all behind `vendor` role:
-- `/vendor` — today's bookings, revenue this week, occupancy %.
-- `/vendor/venues` — list + "Create venue".
-- `/vendor/venues/$id` — edit details, images, publish toggle.
-- `/vendor/venues/$id/resources` — add/rename/disable courts/tables.
-- `/vendor/venues/$id/hours` — opening hours per day-of-week.
-- `/vendor/venues/$id/pricing` — peak/off-peak pricing rules, min duration, slot step.
-- `/vendor/venues/$id/blackouts` — block out maintenance windows.
-- `/vendor/bookings` — incoming bookings, cancel/refund stub.
+## Out of scope (explicitly not touched)
 
-RLS: vendors can only read/write their own venues and the resources/pricing/bookings under them.
+- Payments, real Stripe/Paddle wiring
+- New marketplace features, search, filters
+- Notifications/emails
+- Schema changes beyond what's needed for `reserveAnyResource` (none expected — uses existing tables + RPC)
 
-## 5. Customer flow — wired to real data
+## Verification
 
-Existing screens get re-wired (no visual overhaul, just real data):
-- Home → `listVenues` grouped by activity.
-- `/activity/$activity` → real list, filter Indoor/Outdoor, distance hidden until geo is in scope.
-- `/venue/$venueId` → real images, dates from today→+14, time slots come from `getAvailability` (greyed if `availableResourceIds` is empty).
-- `/venue/$venueId/courts` → only shows resources actually free for the chosen slot.
-- `/summary` → `quote()` for the total; "Pay" calls `createBooking` (status `confirmed`, payment marked `unpaid` — Stripe to be wired later).
-- `/confirmation` → real booking reference from server.
-- `/bookings` → `myBookings()` real data; cancel action.
+- Sign in with Google as vendor → lands on `/vendor` without flicker.
+- Sign out → lands on `/`, no 401s in console.
+- Edit venue → number/time fields can be cleared and retyped.
+- Customer picks date+time → "Continue Booking" → confirmation page with a court auto-assigned.
+- Try same slot twice → second attempt shows "No courts available".
 
-## 6. Design polish (in same pass)
-
-- Skeleton states for venue list, availability grid, summary.
-- Empty states ("No slots left for this time — try another day").
-- Error toasts on capacity collisions ("Just taken — pick another court").
-- Login/signup screens match the dark hero + green accent system already in `styles.css`.
-- Vendor dashboard uses the same tokens but a denser desktop layout (sidebar + cards) — mobile still works.
-
-## 7. MVP roadmap & order of work
-
-1. Migration: profiles, roles, venues, resources, pricing, hours, blackouts, bookings, booking_resources, EXCLUDE constraint, `create_booking()` function, `handle_new_user()` trigger, RLS policies. *(one migration call)*
-2. Auth: email/password + Google, `/login`, `/signup`, `_authenticated` layout, header avatar/menu.
-3. Seed: one demo vendor account + 2 venues + resources + pricing so the home page isn't empty.
-4. Server functions for venues / availability / quote / bookings.
-5. Re-wire customer routes to server functions; add skeletons + empty/error states.
-6. Vendor dashboard (`_vendor` layout + the 7 pages above).
-7. Admin panel (`_admin` layout): users, role grants, all venues, all bookings, force-cancel.
-8. *(Later)* swap the stub "Pay" for Stripe Checkout.
-
-## Technical notes
-
-- All server functions live in `*.functions.ts` and use `requireSupabaseAuth` middleware where auth is needed; `attachSupabaseAuth` already in `src/start.ts` (verify).
-- Capacity is enforced by the DB EXCLUDE constraint + the `create_booking` transaction — the UI's availability call is a hint, not the source of truth.
-- Prices are always recomputed server-side from `pricing_rules`; the client only displays.
-- This plan deliberately defers Stripe, geo/distance, reviews/ratings, vendor payouts, and notifications.
-
-Reply with **approve** to start with step 1 (the migration), or tell me what to change.
+Approve and I'll execute the pass in that order.
