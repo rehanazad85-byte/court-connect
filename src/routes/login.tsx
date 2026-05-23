@@ -55,15 +55,26 @@ function LoginPage() {
 
   const onGoogle = async () => {
     setBusy(true);
-    window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (res?.error) { setBusy(false); return toast.error(res.error.message ?? "Sign-in failed"); }
-    if (!res?.redirected) {
-      const target = await resolveLandingTarget(search.redirect);
+    const timeout = window.setTimeout(() => {
       setBusy(false);
-      nav({ href: target, replace: true });
-    } else {
+      toast.error("Google sign-in didn't open. Please try again or open the preview in a new tab.");
+    }, 15000);
+    try {
+      window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
+      const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+      window.clearTimeout(timeout);
+      if (res?.error) { setBusy(false); return toast.error(res.error.message ?? "Sign-in failed"); }
+      if (!res?.redirected) {
+        const target = await resolveLandingTarget(search.redirect);
+        setBusy(false);
+        nav({ href: target, replace: true });
+      } else {
+        setBusy(false);
+      }
+    } catch (e) {
+      window.clearTimeout(timeout);
       setBusy(false);
+      toast.error(e instanceof Error ? e.message : "Google sign-in failed");
     }
   };
 
