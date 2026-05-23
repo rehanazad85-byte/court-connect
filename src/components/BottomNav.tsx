@@ -11,10 +11,14 @@ const tabs = [
 
 export function BottomNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const onVendor = path === "/vendor" || path.startsWith("/vendor/");
+  const visibleTabs = onVendor
+    ? tabs.filter((t) => t.to === "/vendor" || t.to === "/profile" || t.to === "/")
+    : tabs.filter((t) => t.to !== "/vendor");
   return (
-    <nav className="sticky bottom-0 z-30 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <ul className="mx-auto grid max-w-md grid-cols-5">
-        {tabs.map(({ to, label, icon: Icon }) => {
+    <nav className="sticky bottom-0 z-30 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
+      <ul className={`mx-auto grid max-w-md`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
+        {visibleTabs.map(({ to, label, icon: Icon }) => {
           const active = to === "/" ? path === "/" : path.startsWith(to);
           return (
             <li key={to}>
