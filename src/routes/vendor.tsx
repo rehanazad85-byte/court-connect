@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Plus, Calendar, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
-import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue } from "@/lib/vendor.functions";
+import { listMyVenues, listVendorBookings, myRoles, claimVendor, createVenue, setVenuePublished } from "@/lib/vendor.functions";
 import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
