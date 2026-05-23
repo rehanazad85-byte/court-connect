@@ -113,18 +113,22 @@ function AuthSync() {
       return null;
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
-        const stored = window.sessionStorage.getItem("knox_auth_redirect");
-        window.sessionStorage.removeItem("knox_auth_redirect");
-        const target = await resolveAfterSignIn(stored);
-        if (target && window.location.pathname !== target) {
-          router.navigate({ href: target, replace: true });
-        }
-      }
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      router.invalidate();
-      qc.invalidateQueries();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      window.setTimeout(() => {
+        void (async () => {
+          if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
+            const stored = window.sessionStorage.getItem("knox_auth_redirect");
+            window.sessionStorage.removeItem("knox_auth_redirect");
+            const target = await resolveAfterSignIn(stored);
+            if (target && window.location.pathname !== target) {
+              await router.navigate({ href: target, replace: true });
+            }
+          }
+          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+          await router.invalidate();
+          qc.invalidateQueries();
+        })();
+      }, 0);
     });
     return () => subscription.unsubscribe();
   }, [router, qc]);
