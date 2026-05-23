@@ -273,9 +273,9 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr"><input type="number" min={1} className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: +e.target.value })} /></Field>
-        <Field label="Opens (hr)"><input type="number" min={0} max={24} className={cls} value={form.openMin / 60} onChange={(e) => setForm({ ...form, openMin: +e.target.value * 60 })} /></Field>
-        <Field label="Closes (hr)"><input type="number" min={1} max={24} className={cls} value={form.closeMin / 60} onChange={(e) => setForm({ ...form, closeMin: +e.target.value * 60 })} /></Field>
+        <Field label="£ / hr"><input type="text" inputMode="decimal" className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: e.target.value.replace(/[^0-9.]/g, "") })} /></Field>
+        <Field label="Opens (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.openHour} onChange={(e) => setForm({ ...form, openHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="Closes (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.closeHour} onChange={(e) => setForm({ ...form, closeHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
       </div>
       <button disabled={busy} className="h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Creating..." : "Create venue"}</button>
     </form>
