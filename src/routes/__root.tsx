@@ -128,10 +128,9 @@ function AuthSync() {
             qc.invalidateQueries();
             return;
           }
-          if (event === "USER_UPDATED") {
-            await router.invalidate();
-            qc.invalidateQueries();
-          }
+          // Intentionally do NOT invalidate on USER_UPDATED / TOKEN_REFRESHED
+          // — those fire on background token refresh and would cause an
+          // infinite re-render loop on auth pages.
         })();
       }, 0);
     });
