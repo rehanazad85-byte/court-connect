@@ -238,37 +238,37 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-card p-4">
-      <Input label="Name"><input required className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Input>
+      <Field label="Name"><input required className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Input label="Activity">
+        <Field label="Activity">
           <select className={cls} value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })}>
             <option value="padel">Padel</option><option value="snooker">Snooker</option>
             <option value="pool">Pool</option><option value="darts">Darts</option>
             <option value="golf-sim">Golf Sim</option>
           </select>
-        </Input>
-        <Input label="Type">
+        </Field>
+        <Field label="Type">
           <select className={cls} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as any })}>
             <option>Indoor</option><option>Outdoor</option>
           </select>
-        </Input>
+        </Field>
       </div>
-      <Input label="City"><input className={cls} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></Input>
-      <Input label="Cover image URL"><input className={cls} placeholder="https://..." value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} /></Input>
-      <Input label="Description"><textarea className={`${cls} h-16 py-2`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Input>
+      <Field label="City"><input className={cls} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></Field>
+      <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} /></Field>
+      <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Input label="# of resources"><input type="number" min={1} max={40} className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: +e.target.value })} /></Input>
-        <Input label="Resource kind">
+        <Field label="# of resources"><input type="number" min={1} max={40} className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: +e.target.value })} /></Field>
+        <Field label="Resource kind">
           <select className={cls} value={form.resourceKind} onChange={(e) => setForm({ ...form, resourceKind: e.target.value as any })}>
             <option value="court">Court</option><option value="table">Table</option>
             <option value="lane">Lane</option><option value="sim">Sim Bay</option><option value="board">Board</option>
           </select>
-        </Input>
+        </Field>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <Input label="£ / hr"><input type="number" min={1} className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: +e.target.value })} /></Input>
-        <Input label="Opens (hr)"><input type="number" min={0} max={24} className={cls} value={form.openMin / 60} onChange={(e) => setForm({ ...form, openMin: +e.target.value * 60 })} /></Input>
-        <Input label="Closes (hr)"><input type="number" min={1} max={24} className={cls} value={form.closeMin / 60} onChange={(e) => setForm({ ...form, closeMin: +e.target.value * 60 })} /></Input>
+        <Field label="£ / hr"><input type="number" min={1} className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: +e.target.value })} /></Field>
+        <Field label="Opens (hr)"><input type="number" min={0} max={24} className={cls} value={form.openMin / 60} onChange={(e) => setForm({ ...form, openMin: +e.target.value * 60 })} /></Field>
+        <Field label="Closes (hr)"><input type="number" min={1} max={24} className={cls} value={form.closeMin / 60} onChange={(e) => setForm({ ...form, closeMin: +e.target.value * 60 })} /></Field>
       </div>
       <button disabled={busy} className="h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Creating..." : "Create venue"}</button>
     </form>
