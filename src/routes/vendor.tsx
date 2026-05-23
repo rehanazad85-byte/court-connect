@@ -250,7 +250,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-card p-4">
-      <Field label="Venue Name"><input required placeholder="e.g. Birmingham Padel Club" className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+      <Field label="Business / Venue Name" help="This is the public name customers will see — not your personal name."><input required placeholder="e.g. Birmingham Padel Club" className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Activity">
           <select className={cls} value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })}>
