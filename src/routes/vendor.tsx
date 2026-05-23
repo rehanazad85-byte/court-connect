@@ -180,11 +180,12 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
       <div className="mt-1">{children}</div>
+      {help && <span className="mt-1 block text-[11px] text-muted-foreground">{help}</span>}
     </label>
   );
 }
@@ -249,7 +250,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-card p-4">
-      <Field label="Venue Name"><input required placeholder="e.g. Birmingham Padel Club" className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+      <Field label="Business / Venue Name" help="This is the public name customers will see — not your personal name."><input required placeholder="e.g. Birmingham Padel Club" className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Activity">
           <select className={cls} value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })}>
@@ -347,7 +348,7 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-background p-3">
-      <Field label="Venue Name"><input required className={cls} value={f.name} onChange={(e) => setForm({ ...f, name: e.target.value })} /></Field>
+      <Field label="Business / Venue Name" help="This is the public name customers will see — not your personal name."><input required className={cls} value={f.name} onChange={(e) => setForm({ ...f, name: e.target.value })} /></Field>
       <Field label="City"><input className={cls} value={f.city} onChange={(e) => setForm({ ...f, city: e.target.value })} /></Field>
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={f.coverImage} onChange={(e) => setForm({ ...f, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={f.description} onChange={(e) => setForm({ ...f, description: e.target.value })} /></Field>

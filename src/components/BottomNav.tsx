@@ -1,10 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, CalendarDays, Heart, User } from "lucide-react";
+import { Home, CalendarDays, Heart, User, Building2 } from "lucide-react";
 
 const tabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/bookings", label: "Bookings", icon: CalendarDays },
   { to: "/favorites", label: "Favorites", icon: Heart },
+  { to: "/vendor", label: "Vendor", icon: Building2 },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 
@@ -12,7 +13,7 @@ export function BottomNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
     <nav className="sticky bottom-0 z-30 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <ul className="mx-auto grid max-w-md grid-cols-4">
+      <ul className="mx-auto grid max-w-md grid-cols-5">
         {tabs.map(({ to, label, icon: Icon }) => {
           const active = to === "/" ? path === "/" : path.startsWith(to);
           return (
