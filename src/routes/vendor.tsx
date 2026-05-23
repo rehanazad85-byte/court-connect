@@ -131,12 +131,15 @@ function VendorDashboard() {
                 </div>
                 <Link to="/venue/$venueId" params={{ venueId: v.id }} className="text-xs font-bold text-primary">View</Link>
               </div>
-              <div className="mt-2 flex gap-2 border-t pt-2 text-[11px] font-semibold">
+              <div className="mt-2 flex flex-wrap gap-2 border-t pt-2 text-[11px] font-semibold">
                 <button onClick={() => onTogglePublish(v.id, !v.is_published)} className="rounded-full border px-2.5 py-1 hover:bg-muted">
                   {v.is_published ? "Unpublish" : "Publish"}
                 </button>
-                <Link to="/venue/$venueId" params={{ venueId: v.id }} className="rounded-full border px-2.5 py-1 hover:bg-muted">Hours · Pricing · Courts</Link>
+                <button onClick={() => setEditingId(editingId === v.id ? null : v.id)} className="rounded-full border px-2.5 py-1 hover:bg-muted">
+                  {editingId === v.id ? "Close" : "Edit"}
+                </button>
               </div>
+              {editingId === v.id && <EditVenueForm venueId={v.id} onDone={() => setEditingId(null)} />}
             </div>
           ))}
         </div>
