@@ -67,6 +67,7 @@ function VendorDashboard() {
   const bookings = useSuspenseQuery(vendorBookingsQuery);
   const togglePublish = useServerFn(setVenuePublished);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const now = Date.now();
   const upcoming = bookings.data.bookings.filter((b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now);
