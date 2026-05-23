@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { clearAuthDebug, readAuthDebug, snapshotAuthDebug, type AuthDebugEntry } from "@/lib/auth-debug";
 
 export function AuthDebugPanel({ title = "Auth debug" }: { title?: string }) {
-  const [entries, setEntries] = useState<AuthDebugEntry[]>(() => readAuthDebug());
+  const [entries, setEntries] = useState<AuthDebugEntry[]>([]);
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    void snapshotAuthDebug("debug panel mounted");
     const refresh = () => setEntries(readAuthDebug());
     window.addEventListener("knox-auth-debug", refresh);
     window.addEventListener("storage", refresh);
     refresh();
+    void snapshotAuthDebug("debug panel mounted");
     return () => {
       window.removeEventListener("knox-auth-debug", refresh);
       window.removeEventListener("storage", refresh);
