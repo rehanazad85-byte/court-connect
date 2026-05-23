@@ -1,13 +1,16 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Calendar } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
 import { TopBar } from "@/components/TopBar";
-import { getVenueDetails, getAvailability } from "@/lib/booking.functions";
+import { getVenueDetails, getAvailability, reserveAnyAvailable } from "@/lib/booking.functions";
 import { ACTIVITY_LABELS } from "@/lib/mock-data";
 import { bookingStore } from "@/lib/booking-store";
-import { nextDays } from "@/lib/date-utils";
+import { nextDays, combineISO } from "@/lib/date-utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const venueQuery = (venueId: string) =>
   queryOptions({
@@ -31,11 +34,13 @@ function VenuePage() {
   const { data } = useSuspenseQuery(venueQuery(venueId));
   const venue = data.venue;
   const navigate = useNavigate();
+  const reserve = useServerFn(reserveAnyAvailable);
 
   const days = useMemo(() => nextDays(14), []);
   const [dateISO, setDateISO] = useState<string>(days[0].iso);
   const [time, setTime] = useState<string | null>(null);
   const [durationMin, setDurationMin] = useState(60);
+  const [submitting, setSubmitting] = useState(false);
 
   const availabilityQuery = useQuery({
     queryKey: ["availability", venueId, dateISO, durationMin],
@@ -54,23 +59,45 @@ function VenuePage() {
 
   const slots = availabilityQuery.data?.slots ?? [];
   const dayLabel = days.find((d) => d.iso === dateISO)?.label ?? "";
+  const canContinue = time !== null && !submitting;
 
-  const canContinue = time !== null;
-  const goNext = () => {
+  const goNext = async () => {
     if (!time) return;
-    bookingStore.set({
-      venueId: venue.id,
-      venueName: venue.name,
-      venueImage: venue.cover_image,
-      dateISO,
-      dateLabel: dayLabel,
-      time,
-      durationMin,
-      resourceIds: [],
-      resourceLabels: [],
-      pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
-    });
-    navigate({ to: "/venue/$venueId/courts", params: { venueId: venue.id } });
+    setSubmitting(true);
+    try {
+      const startsAtISO = combineISO(dateISO, time);
+
+      // Require auth before reserving; bounce to login otherwise.
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        bookingStore.set({
+          venueId: venue.id,
+          venueName: venue.name,
+          venueImage: venue.cover_image,
+          dateISO, dateLabel: dayLabel, time, durationMin,
+          resourceIds: [], resourceLabels: [],
+          pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
+        });
+        navigate({ to: "/login", search: { redirect: `/venue/${venue.id}` } });
+        return;
+      }
+
+      const res = await reserve({
+        data: { venueId: venue.id, startsAtISO, durationMin, players: 2 },
+      });
+      if (!res.ok) {
+        toast.error(res.reason);
+        await availabilityQuery.refetch();
+        setTime(null);
+        return;
+      }
+      bookingStore.set({});
+      navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Booking failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -161,7 +188,7 @@ function VenuePage() {
             disabled={!canContinue}
             className={`rounded-xl px-5 py-3 text-sm font-semibold transition ${canContinue ? "bg-primary text-primary-foreground" : "pointer-events-none bg-muted text-muted-foreground"}`}
           >
-            View Courts
+            {submitting ? "Booking…" : "Continue Booking"}
           </button>
         </div>
       </div>
