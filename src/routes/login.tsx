@@ -135,36 +135,6 @@ function LoginPage() {
   );
 }
 
-function navigateToOAuthUrl(url: string) {
-  try {
-    if (window.top && window.top !== window.self) {
-      window.top.location.assign(url);
-      return;
-    }
-  } catch {
-    // Cross-origin preview frames may block top navigation; fall back to this frame.
-  }
-  window.location.assign(url);
-}
-
-function createGoogleOAuthUrl(redirectTo: string) {
-  const params = new URLSearchParams({
-    provider: "google",
-    redirect_uri: redirectTo,
-    state: createOAuthState(),
-    prompt: "select_account",
-  });
-  return `${window.location.origin}/~oauth/initiate?${params.toString()}`;
-}
-
-function createOAuthState() {
-  if (window.crypto?.getRandomValues) {
-    return Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-      byte.toString(16).padStart(2, "0"),
-    ).join("");
-  }
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
-}
 
 function GoogleIcon() {
   return (
