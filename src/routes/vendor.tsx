@@ -207,6 +207,13 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     setBusy(true);
     try {
+      const priceNum = parseFloat(form.pricePerHourPound);
+      const resCount = parseInt(form.resourceCount, 10);
+      const openH = parseInt(form.openHour, 10);
+      const closeH = parseInt(form.closeHour, 10);
+      if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price");
+      if (!Number.isFinite(resCount) || resCount < 1) throw new Error("Enter number of resources");
+      if (!Number.isFinite(openH) || !Number.isFinite(closeH) || closeH <= openH) throw new Error("Enter valid opening/closing hours");
       await create({
         data: {
           name: form.name,
@@ -215,11 +222,11 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
           city: form.city || undefined,
           description: form.description || undefined,
           coverImage: form.coverImage || undefined,
-          resourceCount: form.resourceCount,
+          resourceCount: resCount,
           resourceKind: form.resourceKind,
-          pricePerHourPence: Math.round(form.pricePerHourPound * 100),
-          openMin: form.openMin,
-          closeMin: form.closeMin,
+          pricePerHourPence: Math.round(priceNum * 100),
+          openMin: openH * 60,
+          closeMin: closeH * 60,
         },
       });
       toast.success("Venue created");
