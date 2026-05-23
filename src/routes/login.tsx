@@ -4,6 +4,8 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { resolveLandingTarget, safeRedirectTarget } from "@/lib/auth-redirect";
+import { AuthDebugPanel } from "@/components/AuthDebugPanel";
+import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
@@ -12,8 +14,20 @@ export const Route = createFileRoute("/login")({
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       const target = await resolveLandingTarget(search.redirect);
+      logAuthDebug("login guard: session exists, redirecting away", {
+        target,
+        requestedRedirect: search.redirect ?? null,
+        sessionExists: true,
+        userIdExists: Boolean(data.session.user.id),
+        userId: data.session.user.id,
+      });
       throw redirect({ href: target });
     }
+    logAuthDebug("login guard: showing login", {
+      requestedRedirect: search.redirect ?? null,
+      sessionExists: false,
+      userIdExists: false,
+    });
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
@@ -29,10 +43,15 @@ function LoginPage() {
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    await snapshotAuthDebug("email login started", { requestedRedirect: search.redirect ?? null });
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return toast.error(error.message);
+      if (error) {
+        logAuthDebug("email login failed", { authError: error.message });
+        return toast.error(error.message);
+      }
       const target = await resolveLandingTarget(search.redirect);
+      await snapshotAuthDebug("email login success", { target });
       nav({ href: target, replace: true });
     } finally {
       setBusy(false);
@@ -43,12 +62,22 @@ function LoginPage() {
     setBusy(true);
     try {
       window.sessionStorage.setItem("knox_auth_redirect", safeRedirectTarget(search.redirect));
+      await snapshotAuthDebug("google login started", {
+        requestedRedirect: search.redirect ?? null,
+        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
+        redirectUri: window.location.origin,
+      });
       const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (res?.error) return toast.error(res.error.message ?? "Sign-in failed");
+      if (res?.error) {
+        logAuthDebug("google login failed", { authError: res.error.message ?? "Sign-in failed" });
+        return toast.error(res.error.message ?? "Sign-in failed");
+      }
       if (res?.redirected) return; // browser will navigate
       const target = await resolveLandingTarget(search.redirect);
+      await snapshotAuthDebug("google login returned tokens", { target });
       nav({ href: target, replace: true });
     } catch (e) {
+      logAuthDebug("google login exception", { authError: e instanceof Error ? e.message : String(e) });
       toast.error(e instanceof Error ? e.message : "Google sign-in failed");
     } finally {
       setBusy(false);
@@ -80,6 +109,7 @@ function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-white/60">No account? <Link to="/signup" className="font-semibold text-primary">Create one</Link></p>
       </div>
+      <AuthDebugPanel title="Login auth debug" />
     </div>
   );
 }
