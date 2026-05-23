@@ -37,7 +37,34 @@ export const listMyVenues = createServerFn({ method: "GET" })
       .eq("vendor_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return { venues: data ?? [] };
+    const venues = data ?? [];
+    const ids = venues.map((v) => v.id);
+    let countByVenue = new Map<string, number>();
+    if (ids.length > 0) {
+      const { data: rs } = await supabase
+        .from("resources")
+        .select("venue_id, id")
+        .in("venue_id", ids)
+        .eq("is_active", true);
+      rs?.forEach((r) => countByVenue.set(r.venue_id, (countByVenue.get(r.venue_id) ?? 0) + 1));
+    }
+    return { venues: venues.map((v) => ({ ...v, resourceCount: countByVenue.get(v.id) ?? 0 })) };
+  });
+
+export const setVenuePublished = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { venueId: string; isPublished: boolean }) =>
+    z.object({ venueId: z.string().uuid(), isPublished: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("venues")
+      .update({ is_published: data.isPublished })
+      .eq("id", data.venueId)
+      .eq("vendor_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const listVendorBookings = createServerFn({ method: "GET" })
