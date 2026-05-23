@@ -34,7 +34,8 @@ function LoginPage() {
 
   const onGoogle = async () => {
     setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + (search.redirect ?? "/") });
+    // Return to this login page so beforeLoad can forward to `redirect` once the session is set.
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href });
     setBusy(false);
     if (res?.error) toast.error(res.error.message ?? "Sign-in failed");
   };
