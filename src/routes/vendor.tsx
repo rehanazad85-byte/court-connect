@@ -196,17 +196,24 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     city: "",
     description: "",
     coverImage: "",
-    resourceCount: 4,
+    resourceCount: "4",
     resourceKind: "court" as "court" | "table" | "lane" | "sim" | "board",
-    pricePerHourPound: 30,
-    openMin: 7 * 60,
-    closeMin: 22 * 60,
+    pricePerHourPound: "30",
+    openHour: "7",
+    closeHour: "22",
   });
 
   const sub = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
+      const priceNum = parseFloat(form.pricePerHourPound);
+      const resCount = parseInt(form.resourceCount, 10);
+      const openH = parseInt(form.openHour, 10);
+      const closeH = parseInt(form.closeHour, 10);
+      if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price");
+      if (!Number.isFinite(resCount) || resCount < 1) throw new Error("Enter number of resources");
+      if (!Number.isFinite(openH) || !Number.isFinite(closeH) || closeH <= openH) throw new Error("Enter valid opening/closing hours");
       await create({
         data: {
           name: form.name,
@@ -215,11 +222,11 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
           city: form.city || undefined,
           description: form.description || undefined,
           coverImage: form.coverImage || undefined,
-          resourceCount: form.resourceCount,
+          resourceCount: resCount,
           resourceKind: form.resourceKind,
-          pricePerHourPence: Math.round(form.pricePerHourPound * 100),
-          openMin: form.openMin,
-          closeMin: form.closeMin,
+          pricePerHourPence: Math.round(priceNum * 100),
+          openMin: openH * 60,
+          closeMin: closeH * 60,
         },
       });
       toast.success("Venue created");
@@ -238,7 +245,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={sub} className="mt-3 space-y-3 rounded-2xl border bg-card p-4">
-      <Field label="Name"><input required className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+      <Field label="Venue Name"><input required placeholder="e.g. Birmingham Padel Club" className={cls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Activity">
           <select className={cls} value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })}>
@@ -257,7 +264,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
       <Field label="Cover image URL"><input className={cls} placeholder="https://..." value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} /></Field>
       <Field label="Description"><textarea className={`${cls} h-16 py-2`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="# of resources"><input type="number" min={1} max={40} className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: +e.target.value })} /></Field>
+        <Field label="# of resources"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.resourceCount} onChange={(e) => setForm({ ...form, resourceCount: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
         <Field label="Resource kind">
           <select className={cls} value={form.resourceKind} onChange={(e) => setForm({ ...form, resourceKind: e.target.value as any })}>
             <option value="court">Court</option><option value="table">Table</option>
@@ -266,9 +273,9 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr"><input type="number" min={1} className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: +e.target.value })} /></Field>
-        <Field label="Opens (hr)"><input type="number" min={0} max={24} className={cls} value={form.openMin / 60} onChange={(e) => setForm({ ...form, openMin: +e.target.value * 60 })} /></Field>
-        <Field label="Closes (hr)"><input type="number" min={1} max={24} className={cls} value={form.closeMin / 60} onChange={(e) => setForm({ ...form, closeMin: +e.target.value * 60 })} /></Field>
+        <Field label="£ / hr"><input type="text" inputMode="decimal" className={cls} value={form.pricePerHourPound} onChange={(e) => setForm({ ...form, pricePerHourPound: e.target.value.replace(/[^0-9.]/g, "") })} /></Field>
+        <Field label="Opens (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.openHour} onChange={(e) => setForm({ ...form, openHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
+        <Field label="Closes (hr)"><input type="text" inputMode="numeric" pattern="[0-9]*" className={cls} value={form.closeHour} onChange={(e) => setForm({ ...form, closeHour: e.target.value.replace(/[^0-9]/g, "") })} /></Field>
       </div>
       <button disabled={busy} className="h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Creating..." : "Create venue"}</button>
     </form>
