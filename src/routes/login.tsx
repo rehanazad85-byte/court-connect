@@ -3,8 +3,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveLandingTarget } from "@/lib/auth-redirect";
-import { AuthDebugPanel } from "@/components/AuthDebugPanel";
-import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
