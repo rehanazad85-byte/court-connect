@@ -6,8 +6,6 @@ import { Plus, Calendar, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
 import { PendingScreen } from "@/components/PendingScreen";
-import { AuthDebugPanel } from "@/components/AuthDebugPanel";
-import { logAuthDebug } from "@/lib/auth-debug";
 import {
   listMyVenues,
   listVendorBookings,
@@ -35,7 +33,7 @@ function rolesQueryOptions(ready: boolean) {
 
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
-  pendingComponent: () => <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>,
+  pendingComponent: () => <PendingScreen label="Loading vendor dashboard…" />,
   pendingMs: 0,
   errorComponent: ({ error }) => (
     <PhoneShell>
@@ -45,7 +43,6 @@ export const Route = createFileRoute("/vendor")({
           {error instanceof Error ? error.message : "Unknown vendor auth error"}
         </p>
       </div>
-      <AuthDebugPanel title="Vendor auth debug" />
     </PhoneShell>
   ),
   component: VendorAuthGate,
@@ -58,34 +55,13 @@ function VendorAuthGate() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      logAuthDebug("vendor guard: checking", {
-        route: window.location.pathname + window.location.search,
-        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
-        authLoadingState: "checking session",
-      });
-      const { data, error } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!data.session?.user) {
-        logAuthDebug("vendor guard: redirecting to login", {
-          route: window.location.pathname + window.location.search,
-          storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
-          sessionExists: Boolean(data.session),
-          userIdExists: Boolean(data.session?.user?.id),
-          authError: error?.message ?? null,
-          reason: error?.message ?? "No locally restored session/user for /vendor",
-          redirectTo: "/login",
-          redirectSearch: { redirect: "/vendor" },
-        });
         setState("redirecting");
         await nav({ to: "/login", search: { redirect: "/vendor" }, replace: true });
         return;
       }
-      logAuthDebug("vendor guard: allowing", {
-        route: window.location.pathname + window.location.search,
-        sessionExists: true,
-        userIdExists: Boolean(data.session.user.id),
-        userId: data.session.user.id,
-      });
       setState("allowed");
     })();
     return () => {
@@ -94,7 +70,7 @@ function VendorAuthGate() {
   }, [nav]);
 
   if (state !== "allowed") {
-    return <><PendingScreen label={state === "redirecting" ? "Opening sign in…" : "Checking vendor session…"} /><AuthDebugPanel title="Vendor auth debug" /></>;
+    return <PendingScreen label={state === "redirecting" ? "Opening sign in…" : "Checking vendor session…"} />;
   }
 
   return <VendorPage />;
@@ -105,13 +81,9 @@ function VendorPage() {
   const claim = useServerFn(claimVendor);
   const rolesResult = useQuery(rolesQueryOptions(true));
   if (rolesResult.isLoading) {
-    return <><PendingScreen label="Loading vendor roles…" /><AuthDebugPanel title="Vendor auth debug" /></>;
+    return <PendingScreen label="Loading vendor roles…" />;
   }
   if (rolesResult.error) {
-    logAuthDebug("vendor roles failed", {
-      route: window.location.pathname + window.location.search,
-      authError: rolesResult.error instanceof Error ? rolesResult.error.message : String(rolesResult.error),
-    });
     return (
       <PhoneShell>
         <div className="px-5 pt-10">
@@ -120,7 +92,6 @@ function VendorPage() {
             {rolesResult.error instanceof Error ? rolesResult.error.message : "Unable to load vendor roles"}
           </p>
         </div>
-        <AuthDebugPanel title="Vendor auth debug" />
       </PhoneShell>
     );
   }
@@ -154,7 +125,6 @@ function VendorPage() {
             Become a vendor
           </button>
         </div>
-        <AuthDebugPanel title="Vendor auth debug" />
       </PhoneShell>
     );
   }
@@ -173,10 +143,6 @@ function VendorDashboard() {
   const now = Date.now();
   if (venues.error || bookings.error) {
     const error = venues.error ?? bookings.error;
-    logAuthDebug("vendor dashboard data failed", {
-      route: window.location.pathname + window.location.search,
-      authError: error instanceof Error ? error.message : String(error),
-    });
     return (
       <PhoneShell>
         <div className="px-5 pt-10">
@@ -185,13 +151,12 @@ function VendorDashboard() {
             {error instanceof Error ? error.message : "Unable to load vendor data"}
           </p>
         </div>
-        <AuthDebugPanel title="Vendor auth debug" />
       </PhoneShell>
     );
   }
 
   if (venues.isLoading || bookings.isLoading) {
-    return <><PendingScreen label="Loading vendor dashboard…" /><AuthDebugPanel title="Vendor auth debug" /></>;
+    return <PendingScreen label="Loading vendor dashboard…" />;
   }
 
   const upcoming = (bookings.data?.bookings ?? []).filter(
@@ -331,7 +296,7 @@ function VendorDashboard() {
           })}
         </div>
       </div>
-      <AuthDebugPanel title="Vendor auth debug" />
+      
     </PhoneShell>
   );
 }
