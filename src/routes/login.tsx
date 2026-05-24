@@ -11,20 +11,8 @@ export const Route = createFileRoute("/login")({
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       const target = await resolveLandingTarget(search.redirect);
-      logAuthDebug("login guard: session exists, redirecting away", {
-        target,
-        requestedRedirect: search.redirect ?? null,
-        sessionExists: true,
-        userIdExists: Boolean(data.session.user.id),
-        userId: data.session.user.id,
-      });
       throw redirect({ href: target });
     }
-    logAuthDebug("login guard: showing login", {
-      requestedRedirect: search.redirect ?? null,
-      sessionExists: false,
-      userIdExists: false,
-    });
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
