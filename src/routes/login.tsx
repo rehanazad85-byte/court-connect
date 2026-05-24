@@ -55,9 +55,8 @@ function LoginPage() {
           <button disabled={busy} type="submit" className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">Sign in</button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-white/60">No account? <Link to="/signup" className="font-semibold text-primary">Create one</Link></p>
+      <p className="mt-6 text-center text-sm text-white/60">No account? <Link to="/signup" className="font-semibold text-primary">Create one</Link></p>
       </div>
-      <AuthDebugPanel title="Login auth debug" />
     </div>
   );
 }
