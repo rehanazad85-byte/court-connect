@@ -3,8 +3,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveLandingTarget } from "@/lib/auth-redirect";
-import { AuthDebugPanel } from "@/components/AuthDebugPanel";
-import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
@@ -13,20 +11,8 @@ export const Route = createFileRoute("/login")({
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       const target = await resolveLandingTarget(search.redirect);
-      logAuthDebug("login guard: session exists, redirecting away", {
-        target,
-        requestedRedirect: search.redirect ?? null,
-        sessionExists: true,
-        userIdExists: Boolean(data.session.user.id),
-        userId: data.session.user.id,
-      });
       throw redirect({ href: target });
     }
-    logAuthDebug("login guard: showing login", {
-      requestedRedirect: search.redirect ?? null,
-      sessionExists: false,
-      userIdExists: false,
-    });
   },
   head: () => ({ meta: [{ title: "Sign in — Knox" }] }),
   component: LoginPage,
@@ -42,15 +28,12 @@ function LoginPage() {
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    await snapshotAuthDebug("email login started", { requestedRedirect: search.redirect ?? null });
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        logAuthDebug("email login failed", { authError: error.message });
         return toast.error(error.message);
       }
       const target = await resolveLandingTarget(search.redirect);
-      await snapshotAuthDebug("email login success", { target });
       nav({ href: target, replace: true });
     } finally {
       setBusy(false);
@@ -72,9 +55,8 @@ function LoginPage() {
           <button disabled={busy} type="submit" className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60">Sign in</button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-white/60">No account? <Link to="/signup" className="font-semibold text-primary">Create one</Link></p>
+      <p className="mt-6 text-center text-sm text-white/60">No account? <Link to="/signup" className="font-semibold text-primary">Create one</Link></p>
       </div>
-      <AuthDebugPanel title="Login auth debug" />
     </div>
   );
 }
