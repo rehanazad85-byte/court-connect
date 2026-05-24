@@ -28,15 +28,12 @@ function LoginPage() {
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    await snapshotAuthDebug("email login started", { requestedRedirect: search.redirect ?? null });
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        logAuthDebug("email login failed", { authError: error.message });
         return toast.error(error.message);
       }
       const target = await resolveLandingTarget(search.redirect);
-      await snapshotAuthDebug("email login success", { target });
       nav({ href: target, replace: true });
     } finally {
       setBusy(false);
