@@ -339,6 +339,9 @@ export const reserveAnyAvailable = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const start = new Date(data.startsAtISO);
+    if (start.getTime() <= Date.now()) {
+      return { ok: false as const, reason: "Cannot book a time in the past" };
+    }
     const end = new Date(start.getTime() + data.durationMin * 60_000);
     const dow = start.getUTCDay();
     const startMin = minsOfDay(start);
