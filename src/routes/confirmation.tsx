@@ -1,7 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { Check, X, Calendar, Clock, LayoutGrid, MapPin } from "lucide-react";
+import { Check, X, Calendar, Clock, LayoutGrid, MapPin, Users } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { formatPence } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
