@@ -19,8 +19,11 @@ const SERVICE_FEE_RATE = 0.02;
 // ---------- Public reads ----------
 
 export const listVenues = createServerFn({ method: "GET" })
-  .inputValidator((input: { activity?: string } | undefined) =>
-    z.object({ activity: z.string().min(1).max(40).optional() }).parse(input ?? {}),
+  .inputValidator((input: { activity?: string; city?: string } | undefined) =>
+    z.object({
+      activity: z.string().min(1).max(40).optional(),
+      city: z.string().min(1).max(80).optional(),
+    }).parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     const sb = publicSupabase();
@@ -30,6 +33,7 @@ export const listVenues = createServerFn({ method: "GET" })
       .eq("is_published", true)
       .order("created_at", { ascending: false });
     if (data.activity) q = q.eq("activity", data.activity);
+    if (data.city) q = q.ilike("city", `%${data.city}%`);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
