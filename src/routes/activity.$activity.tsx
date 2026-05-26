@@ -22,14 +22,14 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/activity/$activity")({
-  validateSearch: (input: Record<string, unknown>) => searchSchema.parse(input),
+  validateSearch: searchSchema,
   head: ({ params }) => ({
     meta: [
       { title: `${ACTIVITY_LABELS[params.activity] ?? "Venues"} near you — Knox` },
       { name: "description", content: "Browse venues, type and hourly pricing." },
     ],
   }),
-  loaderDeps: ({ search }) => ({ city: search.city }),
+  loaderDeps: ({ search }) => ({ city: (search as { city?: string }).city }),
   loader: ({ params, context, deps }) =>
     context.queryClient.ensureQueryData(venuesByActivityQuery(params.activity, deps.city)),
   component: ActivityPage,
