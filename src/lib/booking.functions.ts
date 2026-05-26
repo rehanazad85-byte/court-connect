@@ -144,6 +144,7 @@ export const getAvailability = createServerFn({ method: "GET" })
     // Use the first matching pricing rule's slot_step for the day, or default 30.
     const step = pricing?.[0]?.slot_step_min ?? 30;
     const slots: { time: string; startMin: number; pricePence: number; availableResourceIds: string[] }[] = [];
+    const nowMs = Date.now();
 
     for (let startMin = open.open_min; startMin + data.durationMin <= open.close_min; startMin += step) {
       const rule = pricingFor(pricing ?? [], dow, startMin);
@@ -151,6 +152,7 @@ export const getAvailability = createServerFn({ method: "GET" })
       if (data.durationMin < rule.min_duration_min) continue;
 
       const slotStart = new Date(Date.UTC(y, m - 1, d, 0, startMin, 0)).getTime();
+      if (slotStart <= nowMs) continue;
       const slotEnd = slotStart + data.durationMin * 60_000;
 
       const available = resources.filter((r) => {
@@ -337,6 +339,9 @@ export const reserveAnyAvailable = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const start = new Date(data.startsAtISO);
+    if (start.getTime() <= Date.now()) {
+      return { ok: false as const, reason: "Cannot book a time in the past" };
+    }
     const end = new Date(start.getTime() + data.durationMin * 60_000);
     const dow = start.getUTCDay();
     const startMin = minsOfDay(start);
