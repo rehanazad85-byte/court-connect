@@ -22,7 +22,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/activity/$activity")({
-  validateSearch: (input) => searchSchema.parse(input),
+  validateSearch: (input: Record<string, unknown>) => searchSchema.parse(input),
   head: ({ params }) => ({
     meta: [
       { title: `${ACTIVITY_LABELS[params.activity] ?? "Venues"} near you — Knox` },
