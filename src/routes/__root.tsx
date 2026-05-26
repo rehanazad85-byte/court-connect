@@ -10,7 +10,7 @@ import {
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { logAuthDebug, snapshotAuthDebug } from "@/lib/auth-debug";
+
 
 import appCss from "../styles.css?url";
 
