@@ -85,7 +85,7 @@ function VenuePage() {
           venueId: venue.id,
           venueName: venue.name,
           venueImage: venue.cover_image,
-          dateISO, dateLabel: dayLabel, time, durationMin,
+          dateISO, dateLabel: dayLabel, time, durationMin, players,
           resourceIds: [], resourceLabels: [],
           pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
         });
@@ -94,7 +94,7 @@ function VenuePage() {
       }
 
       const res = await reserve({
-        data: { venueId: venue.id, startsAtISO, durationMin, players: 2 },
+        data: { venueId: venue.id, startsAtISO, durationMin, players },
       });
       if (!res.ok) {
         toast.error(res.reason);
