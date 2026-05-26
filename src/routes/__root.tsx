@@ -102,61 +102,36 @@ function AuthSync() {
   const qc = useQueryClient();
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      logAuthDebug("auth state event", {
-        event,
-        route: window.location.pathname + window.location.search,
-        storedRedirect: window.sessionStorage.getItem("knox_auth_redirect"),
-        sessionExists: Boolean(session),
-        userIdExists: Boolean(session?.user?.id),
-        userId: session?.user?.id ?? null,
-      });
+      // Fire-and-forget; never await inside the callback.
       window.setTimeout(() => {
         void (async () => {
           if (event === "SIGNED_OUT") {
-            logAuthDebug("signed out: navigating home", { route: window.location.pathname });
             qc.clear();
             window.sessionStorage.removeItem("knox_auth_redirect");
-            await router.navigate({ to: "/", replace: true });
-            return;
-          }
-          if (event === "INITIAL_SESSION" && session?.user) {
-            const path = window.location.pathname;
-            const stored = window.sessionStorage.getItem("knox_auth_redirect");
-            if (stored) {
-              const { resolveLandingTarget } = await import("@/lib/auth-redirect");
-              window.sessionStorage.removeItem("knox_auth_redirect");
-              const target = await resolveLandingTarget(stored);
-              await snapshotAuthDebug("auth callback restored session", { path, stored, target });
-              if (target && window.location.pathname !== target) {
-                await router.navigate({ href: target, replace: true });
-              }
+            if (window.location.pathname !== "/") {
+              await router.navigate({ to: "/", replace: true });
             }
             return;
           }
-          // Only auto-redirect on a real sign-in, and only from auth pages.
-          // INITIAL_SESSION fires on every mount and must NOT navigate the
-          // user away from their current page — that caused a flicker loop
-          // between /login and /vendor.
           if (event === "SIGNED_IN" && session?.user) {
             const path = window.location.pathname;
             const stored = window.sessionStorage.getItem("knox_auth_redirect");
+            // Only redirect from auth pages or when an explicit redirect was stored.
             if (stored || path === "/login" || path === "/signup") {
-              const { resolveLandingTarget } = await import("@/lib/auth-redirect");
               window.sessionStorage.removeItem("knox_auth_redirect");
+              const { resolveLandingTarget } = await import("@/lib/auth-redirect");
               const target = await resolveLandingTarget(stored);
-              await snapshotAuthDebug("auth callback success: resolving landing", { path, stored, target });
-              if (target && window.location.pathname !== target) {
+              const here = window.location.pathname + window.location.search;
+              if (target && target !== here && target !== path) {
                 await router.navigate({ href: target, replace: true });
               }
               return;
             }
-            await router.invalidate();
             qc.invalidateQueries();
-            return;
           }
-          // Intentionally do NOT invalidate on USER_UPDATED / TOKEN_REFRESHED
-          // — those fire on background token refresh and would cause an
-          // infinite re-render loop on auth pages.
+          // Intentionally ignore INITIAL_SESSION / TOKEN_REFRESHED / USER_UPDATED
+          // — they fire on mount and background refresh; navigating on them
+          // causes a replaceState loop.
         })();
       }, 0);
     });
@@ -164,3 +139,4 @@ function AuthSync() {
   }, [router, qc]);
   return null;
 }
+
