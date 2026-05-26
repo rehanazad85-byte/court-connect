@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { Calendar } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
 import { TopBar } from "@/components/TopBar";
@@ -18,7 +19,13 @@ const venueQuery = (venueId: string) =>
     queryFn: () => getVenueDetails({ data: { venueId } }),
   });
 
+const venueSearchSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  players: z.number().int().min(1).max(64).optional(),
+});
+
 export const Route = createFileRoute("/venue/$venueId")({
+  validateSearch: venueSearchSchema,
   head: () => ({
     meta: [
       { title: "Select date & time — Knox" },
@@ -31,15 +38,18 @@ export const Route = createFileRoute("/venue/$venueId")({
 
 function VenuePage() {
   const { venueId } = Route.useParams();
+  const { date: prefilledDate, players: prefilledPlayers } = Route.useSearch();
   const { data } = useSuspenseQuery(venueQuery(venueId));
   const venue = data.venue;
   const navigate = useNavigate();
   const reserve = useServerFn(reserveAnyAvailable);
 
   const days = useMemo(() => nextDays(14), []);
-  const [dateISO, setDateISO] = useState<string>(days[0].iso);
+  const initialDate = prefilledDate && days.some((d) => d.iso === prefilledDate) ? prefilledDate : days[0].iso;
+  const [dateISO, setDateISO] = useState<string>(initialDate);
   const [time, setTime] = useState<string | null>(null);
   const [durationMin, setDurationMin] = useState(60);
+  const [players] = useState<number>(prefilledPlayers ?? 2);
   const [submitting, setSubmitting] = useState(false);
 
   const availabilityQuery = useQuery({
@@ -47,6 +57,7 @@ function VenuePage() {
     queryFn: () => getAvailability({ data: { venueId, dateISO, durationMin } }),
     enabled: !!venue,
   });
+
 
   if (!venue) {
     return (
@@ -74,7 +85,7 @@ function VenuePage() {
           venueId: venue.id,
           venueName: venue.name,
           venueImage: venue.cover_image,
-          dateISO, dateLabel: dayLabel, time, durationMin,
+          dateISO, dateLabel: dayLabel, time, durationMin, players,
           resourceIds: [], resourceLabels: [],
           pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
         });
@@ -83,7 +94,7 @@ function VenuePage() {
       }
 
       const res = await reserve({
-        data: { venueId: venue.id, startsAtISO, durationMin, players: 2 },
+        data: { venueId: venue.id, startsAtISO, durationMin, players },
       });
       if (!res.ok) {
         toast.error(res.reason);

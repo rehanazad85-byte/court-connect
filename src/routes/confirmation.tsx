@@ -1,7 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { Check, X, Calendar, Clock, LayoutGrid, MapPin } from "lucide-react";
+import { Check, X, Calendar, Clock, LayoutGrid, MapPin, Users } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { formatPence } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
@@ -81,6 +81,7 @@ function BookingDetails({ reference, fallbackTotal }: { reference: string; fallb
       <Row icon={Calendar} label="When" value={formatDateTimeUTC(b.starts_at)} />
       <Row icon={Clock} label="Duration" value={`${Math.round((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 60000)} min`} />
       <Row icon={LayoutGrid} label={data.resources.length === 1 ? "Court" : "Courts"} value={data.resources.map((r) => r.name).join(", ") || "—"} />
+      <Row icon={Users} label="Players" value={`${b.players} ${b.players === 1 ? "Player" : "Players"}`} />
       <div className="mt-1 flex items-center justify-between border-t pt-3">
         <span className="text-sm font-bold">Total paid</span>
         <span className="text-base font-bold text-primary">{formatPence(b.total_pence)}</span>

@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Menu, Search, MapPin, Calendar, Users, MessageCircle, Star } from "lucide-react";
+import { useState } from "react";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import heroImg from "@/assets/hero-padel.jpg";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -21,6 +22,11 @@ export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(allVenuesQuery),
   component: Home,
 });
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function Home() {
   const { data } = useSuspenseQuery(allVenuesQuery);
@@ -44,17 +50,7 @@ function Home() {
           <h1 className="mt-2 text-[34px] font-bold leading-[1.05]">Book Padel<br />Courts,<br />Snooker Tables<br />&amp; More</h1>
           <p className="mt-3 text-sm text-white/70">Instant bookings.<br />Real-time availability.<br />Play your game, your way.</p>
 
-          <div className="mt-5 rounded-2xl bg-card text-card-foreground shadow-pop">
-            <SearchRow icon={MessageCircle} label="What are you looking for?" value="Padel Tennis" />
-            <SearchRow icon={MapPin} label="Location" value="Anywhere" />
-            <SearchRow icon={Calendar} label="Date" value="This week" />
-            <SearchRow icon={Users} label="Players" value="2 Players" />
-            <div className="p-2">
-              <Link to="/activity/$activity" params={{ activity: "padel" }} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition active:scale-[.98]">
-                <Search className="h-4 w-4" /> Search
-              </Link>
-            </div>
-          </div>
+          <SearchPanel />
         </div>
       </section>
 
@@ -116,16 +112,110 @@ function Home() {
   );
 }
 
-function SearchRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+function SearchPanel() {
+  const navigate = useNavigate();
+  const [activity, setActivity] = useState<string>("padel");
+  const [city, setCity] = useState<string>("");
+  const [date, setDate] = useState<string>(todayISO());
+  const [players, setPlayers] = useState<number>(2);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigate({
+      to: "/activity/$activity",
+      params: { activity },
+      search: {
+        city: city.trim() || undefined,
+        date: date || undefined,
+        players,
+      },
+    });
+  };
+
+  const activityLabel = ACTIVITY_LABELS[activity] ?? activity;
+
   return (
-    <div className="flex w-full items-center gap-3 border-b border-border/60 px-4 py-3 text-left last:border-0">
-      <Icon className="h-4 w-4 text-muted-foreground" />
-      <div className="flex-1">
-        <div className="text-[11px] text-muted-foreground">{label}</div>
-        <div className="text-sm font-semibold">{value}</div>
+    <form onSubmit={onSubmit} className="mt-5 rounded-2xl bg-card text-card-foreground shadow-pop">
+      <FieldRow icon={MessageCircle} label="What are you looking for?" value={activityLabel}>
+        <select
+          aria-label="Activity"
+          value={activity}
+          onChange={(e) => setActivity(e.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        >
+          {activities.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
+          ))}
+        </select>
+      </FieldRow>
+      <FieldRow icon={MapPin} label="Location" value={city.trim() || "Anywhere"}>
+        <input
+          aria-label="Location"
+          type="text"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="Anywhere"
+          className="absolute inset-0 h-full w-full bg-transparent pl-12 pr-4 pt-5 text-sm font-semibold outline-none placeholder:text-muted-foreground/60"
+        />
+      </FieldRow>
+      <FieldRow icon={Calendar} label="Date" value={date ? formatDateLabel(date) : "Any date"}>
+        <input
+          aria-label="Date"
+          type="date"
+          value={date}
+          min={todayISO()}
+          onChange={(e) => setDate(e.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </FieldRow>
+      <FieldRow icon={Users} label="Players" value={`${players} ${players === 1 ? "Player" : "Players"}`}>
+        <select
+          aria-label="Players"
+          value={players}
+          onChange={(e) => setPlayers(Number(e.target.value))}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        >
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+      </FieldRow>
+      <div className="p-2">
+        <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition active:scale-[.98]">
+          <Search className="h-4 w-4" /> Search
+        </button>
       </div>
+    </form>
+  );
+}
+
+function FieldRow({
+  icon: Icon,
+  label,
+  value,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative flex w-full items-center gap-3 border-b border-border/60 px-4 py-3 text-left last:border-0">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] text-muted-foreground">{label}</div>
+        <div className="truncate text-sm font-semibold">{value}</div>
+      </div>
+      {children}
     </div>
   );
+}
+
+function formatDateLabel(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 }
 
 function KnoxMark() {
