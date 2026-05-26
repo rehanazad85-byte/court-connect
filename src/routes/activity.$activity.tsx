@@ -31,7 +31,7 @@ export const Route = createFileRoute("/activity/$activity")({
   }),
   loaderDeps: ({ search }) => ({ city: (search as { city?: string }).city }),
   loader: ({ params, context, deps }) =>
-    context.queryClient.ensureQueryData(venuesByActivityQuery(params.activity, deps.city)),
+    context.queryClient.ensureQueryData(venuesByActivityQuery(params.activity, (deps as { city?: string }).city)),
   component: ActivityPage,
 });
 
