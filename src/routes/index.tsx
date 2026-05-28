@@ -116,8 +116,11 @@ function SearchPanel() {
   const navigate = useNavigate();
   const [activity, setActivity] = useState<string>("padel");
   const [city, setCity] = useState<string>("");
-  const [date, setDate] = useState<string>(todayISO());
+  const [date, setDate] = useState<string>("");
   const [players, setPlayers] = useState<number>(2);
+  useEffect(() => {
+    if (!date) setDate(todayISO());
+  }, [date]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
