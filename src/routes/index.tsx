@@ -212,10 +212,12 @@ function FieldRow({
   );
 }
 
+const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MON_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function formatDateLabel(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return `${DOW_LABELS[dt.getUTCDay()]} ${dt.getUTCDate()} ${MON_LABELS[dt.getUTCMonth()]}`;
 }
 
 function KnoxMark() {
