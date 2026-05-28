@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Menu, Search, MapPin, Calendar, Users, MessageCircle, Star } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import heroImg from "@/assets/hero-padel.jpg";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -116,8 +116,11 @@ function SearchPanel() {
   const navigate = useNavigate();
   const [activity, setActivity] = useState<string>("padel");
   const [city, setCity] = useState<string>("");
-  const [date, setDate] = useState<string>(todayISO());
+  const [date, setDate] = useState<string>("");
   const [players, setPlayers] = useState<number>(2);
+  useEffect(() => {
+    if (!date) setDate(todayISO());
+  }, [date]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
