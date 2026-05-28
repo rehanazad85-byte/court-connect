@@ -54,18 +54,24 @@ function VendorAuthGate() {
 
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      const { data } = await supabase.auth.getSession();
+    const check = async (session: { user?: unknown } | null) => {
       if (cancelled) return;
-      if (!data.session?.user) {
+      if (!session?.user) {
         setState("redirecting");
         await nav({ to: "/login", search: { redirect: "/vendor" }, replace: true });
         return;
       }
       setState("allowed");
-    })();
+    };
+    // React to live auth changes (handles sign-in completing after mount).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      void check(session);
+    });
+    // Initial read.
+    void supabase.auth.getSession().then(({ data }) => check(data.session));
     return () => {
       cancelled = true;
+      subscription.unsubscribe();
     };
   }, [nav]);
 
@@ -75,6 +81,7 @@ function VendorAuthGate() {
 
   return <VendorPage />;
 }
+
 
 function VendorPage() {
   const qc = useQueryClient();
