@@ -164,7 +164,10 @@ function VenuePage() {
             {Array.from({ length: 16 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-muted" />)}
           </div>
         ) : slots.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">Closed on this date.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            No time slots available for this date. The venue may be closed, fully booked, or has no remaining slots today.
+          </p>
+
         ) : (
           <div className="mt-3 grid grid-cols-4 gap-2">
             {slots.map((s) => {
