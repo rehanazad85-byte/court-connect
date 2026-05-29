@@ -7,14 +7,32 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session: Session | null) => {
+    let active = true;
+    const finish = (session: Session | null) => {
+      if (!active) return;
       setUser(session?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
       setLoading(false);
+    };
+
+    const timeout = window.setTimeout(() => finish(null), 4000);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session: Session | null) => {
+      window.clearTimeout(timeout);
+      finish(session);
     });
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        window.clearTimeout(timeout);
+        finish(data.session);
+      })
+      .catch(() => {
+        window.clearTimeout(timeout);
+        finish(null);
+      });
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = useCallback(async () => {
