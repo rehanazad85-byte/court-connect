@@ -109,9 +109,10 @@ function pricingFor(
   pricing: { day_of_week: number; start_min: number; end_min: number; price_per_hour_pence: number; slot_step_min: number; min_duration_min: number }[],
   dow: number,
   startMin: number,
+  durationMin: number,
 ) {
   return pricing.find(
-    (p) => p.day_of_week === dow && startMin >= p.start_min && startMin < p.end_min,
+    (p) => p.day_of_week === dow && startMin >= p.start_min && startMin + durationMin <= p.end_min,
   );
 }
 
@@ -131,18 +132,19 @@ export const getAvailability = createServerFn({ method: "GET" })
     const dayEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
     const dow = dayStart.getUTCDay();
 
-    const [{ data: resources }, { data: hours }, { data: pricing }, { data: bookings }, { data: blackouts }] =
+    const [{ data: venue }, { data: resources }, { data: hours }, { data: pricing }, { data: bookings }, { data: blackouts }] =
       await Promise.all([
+        sb.from("venues").select("id").eq("id", data.venueId).eq("is_published", true).maybeSingle(),
         sb.from("resources").select("id, name").eq("venue_id", data.venueId).eq("is_active", true).order("sort_order"),
         sb.from("opening_hours").select("day_of_week, open_min, close_min").eq("venue_id", data.venueId).eq("day_of_week", dow),
         sb.from("pricing_rules").select("day_of_week, start_min, end_min, price_per_hour_pence, slot_step_min, min_duration_min").eq("venue_id", data.venueId).eq("day_of_week", dow),
-        sb.from("booking_resources").select("resource_id, starts_at, ends_at, status").gte("starts_at", dayStart.toISOString()).lte("ends_at", dayEnd.toISOString()),
-        sb.from("blackouts").select("resource_id, starts_at, ends_at").eq("venue_id", data.venueId).gte("starts_at", dayStart.toISOString()).lte("ends_at", dayEnd.toISOString()),
+        sb.from("booking_resources").select("resource_id, starts_at, ends_at, status, resources!inner(venue_id)").eq("resources.venue_id", data.venueId).lt("starts_at", dayEnd.toISOString()).gt("ends_at", dayStart.toISOString()),
+        sb.from("blackouts").select("resource_id, starts_at, ends_at").eq("venue_id", data.venueId).lt("starts_at", dayEnd.toISOString()).gt("ends_at", dayStart.toISOString()),
       ]);
 
     const open = hours?.[0];
-    if (!open || !resources || resources.length === 0) {
-      return { slots: [], resources: resources ?? [] };
+    if (!venue || !open || !resources || resources.length === 0) {
+      return { slots: [], resources: resources ?? [], reason: !venue ? "venue_unavailable" : !open ? "closed" : "no_resources" };
     }
 
     // Use the first matching pricing rule's slot_step for the day, or default 30.
@@ -151,7 +153,7 @@ export const getAvailability = createServerFn({ method: "GET" })
     const nowMs = Date.now();
 
     for (let startMin = open.open_min; startMin + data.durationMin <= open.close_min; startMin += step) {
-      const rule = pricingFor(pricing ?? [], dow, startMin);
+      const rule = pricingFor(pricing ?? [], dow, startMin, data.durationMin);
       if (!rule) continue;
       if (data.durationMin < rule.min_duration_min) continue;
 
