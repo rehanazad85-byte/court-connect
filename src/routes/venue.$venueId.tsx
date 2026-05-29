@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { Calendar } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -9,9 +8,8 @@ import { TopBar } from "@/components/TopBar";
 import { getVenueDetails, getAvailability } from "@/lib/booking.functions";
 import { ACTIVITY_LABELS } from "@/lib/mock-data";
 import { bookingStore } from "@/lib/booking-store";
-import { nextDays, combineISO } from "@/lib/date-utils";
+import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 const venueQuery = (venueId: string) =>
   queryOptions({
