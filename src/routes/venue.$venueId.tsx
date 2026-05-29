@@ -156,7 +156,7 @@ function VenuePage() {
           </div>
         ) : slots.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-dashed p-5 text-center">
-            <p className="text-sm font-semibold">No time slots available</p>
+            <p className="text-sm font-semibold">No slots available for this date/duration.</p>
             <p className="mt-1 text-xs text-muted-foreground">Try another date or duration for this venue.</p>
           </div>
 
