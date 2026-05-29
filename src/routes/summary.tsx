@@ -54,7 +54,7 @@ function SummaryPage() {
           players: booking.players,
         },
       });
-      bookingStore.set({});
+      bookingStore.reset();
       navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Booking failed");
@@ -64,7 +64,14 @@ function SummaryPage() {
 
   return (
     <PhoneShell>
-      <TopBar title="Booking Summary" back={`/venue/${booking.venueId}/courts`} />
+      <TopBar
+        title="Booking Summary"
+        back={{
+          to: "/venue/$venueId/courts",
+          params: { venueId: booking.venueId },
+          search: { city: booking.searchCity ?? undefined, date: booking.dateISO, players: booking.players },
+        }}
+      />
 
       <div className="px-5 pb-40">
         <div className="flex items-center gap-3 rounded-2xl bg-card p-3 shadow-soft">

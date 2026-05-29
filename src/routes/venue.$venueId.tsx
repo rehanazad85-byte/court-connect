@@ -1,15 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { Calendar } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
 import { TopBar } from "@/components/TopBar";
-import { getVenueDetails, getAvailability, reserveAnyAvailable } from "@/lib/booking.functions";
+import { getVenueDetails, getAvailability } from "@/lib/booking.functions";
 import { ACTIVITY_LABELS } from "@/lib/mock-data";
 import { bookingStore } from "@/lib/booking-store";
-import { nextDays, combineISO } from "@/lib/date-utils";
+import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -22,6 +21,7 @@ const venueQuery = (venueId: string) =>
 const venueSearchSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   players: z.number().int().min(1).max(64).optional(),
+  city: z.string().min(1).max(80).optional(),
 });
 
 export const Route = createFileRoute("/venue/$venueId")({
@@ -38,11 +38,10 @@ export const Route = createFileRoute("/venue/$venueId")({
 
 function VenuePage() {
   const { venueId } = Route.useParams();
-  const { date: prefilledDate, players: prefilledPlayers } = Route.useSearch();
+  const { date: prefilledDate, players: prefilledPlayers, city } = Route.useSearch();
   const { data } = useSuspenseQuery(venueQuery(venueId));
   const venue = data.venue;
   const navigate = useNavigate();
-  const reserve = useServerFn(reserveAnyAvailable);
 
   const days = useMemo(() => nextDays(14), []);
   const initialDate = prefilledDate && days.some((d) => d.iso === prefilledDate) ? prefilledDate : days[0].iso;
@@ -51,6 +50,7 @@ function VenuePage() {
   const [durationMin, setDurationMin] = useState(60);
   const [players] = useState<number>(prefilledPlayers ?? 2);
   const [submitting, setSubmitting] = useState(false);
+  const backSearch = { city, date: dateISO, players };
 
   const availabilityQuery = useQuery({
     queryKey: ["availability", venueId, dateISO, durationMin],
@@ -76,34 +76,25 @@ function VenuePage() {
     if (!time) return;
     setSubmitting(true);
     try {
-      const startsAtISO = combineISO(dateISO, time);
-
       // Require auth before reserving; bounce to login otherwise.
       const { data: u } = await supabase.auth.getUser();
-      if (!u.user) {
-        bookingStore.set({
-          venueId: venue.id,
-          venueName: venue.name,
-          venueImage: venue.cover_image,
-          dateISO, dateLabel: dayLabel, time, durationMin, players,
-          resourceIds: [], resourceLabels: [],
-          pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
-        });
-        navigate({ to: "/login", search: { redirect: `/venue/${venue.id}` } });
-        return;
-      }
-
-      const res = await reserve({
-        data: { venueId: venue.id, startsAtISO, durationMin, players },
+      bookingStore.set({
+        venueId: venue.id,
+        venueName: venue.name,
+        venueImage: venue.cover_image,
+        dateISO, dateLabel: dayLabel, time, durationMin, players,
+        resourceIds: [], resourceLabels: [],
+        pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
+        searchActivity: venue.activity,
+        searchCity: city ?? venue.city ?? null,
       });
-      if (!res.ok) {
-        toast.error(res.reason);
-        await availabilityQuery.refetch();
-        setTime(null);
+      if (!u.user) {
+        const qs = new URLSearchParams({ date: dateISO, players: String(players) });
+        if (city) qs.set("city", city);
+        navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
         return;
       }
-      bookingStore.set({});
-      navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
+      navigate({ to: "/venue/$venueId/courts", params: { venueId: venue.id }, search: { city, date: dateISO, players } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Booking failed");
     } finally {
@@ -113,7 +104,7 @@ function VenuePage() {
 
   return (
     <PhoneShell>
-      <TopBar title={venue.name} subtitle={`${venue.type} · ${ACTIVITY_LABELS[venue.activity] ?? venue.activity}`} back="/" right="heart" />
+      <TopBar title={venue.name} subtitle={`${venue.type} · ${ACTIVITY_LABELS[venue.activity] ?? venue.activity}`} back={{ to: "/activity/$activity", params: { activity: venue.activity }, search: backSearch }} right="heart" />
 
       <div className="px-5">
         {venue.cover_image && (
@@ -164,9 +155,10 @@ function VenuePage() {
             {Array.from({ length: 16 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-muted" />)}
           </div>
         ) : slots.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            No time slots available for this date. The venue may be closed, fully booked, or has no remaining slots today.
-          </p>
+          <div className="mt-4 rounded-2xl border border-dashed p-5 text-center">
+            <p className="text-sm font-semibold">No time slots available</p>
+            <p className="mt-1 text-xs text-muted-foreground">Try another date or duration for this venue.</p>
+          </div>
 
         ) : (
           <div className="mt-3 grid grid-cols-4 gap-2">
