@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,6 +20,7 @@ import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
+import { supabase } from "@/integrations/supabase/client";
 
 const myVenuesQuery = queryOptions({ queryKey: ["my-venues"], queryFn: () => listMyVenues() });
 const vendorBookingsQuery = queryOptions({
@@ -27,12 +28,31 @@ const vendorBookingsQuery = queryOptions({
   queryFn: () => listVendorBookings(),
 });
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => window.setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 function rolesQueryOptions(ready: boolean) {
-  return { queryKey: ["my-roles"], queryFn: () => myRoles(), enabled: ready };
+  return {
+    queryKey: ["my-roles"],
+    queryFn: () => withTimeout(myRoles(), 5000, { roles: [] }),
+    enabled: ready,
+    retry: false,
+  };
 }
 
 export const Route = createFileRoute("/vendor")({
   head: () => ({ meta: [{ title: "Vendor dashboard — Knox" }] }),
+  beforeLoad: async ({ location }) => {
+    const user = await Promise.race([
+      supabase.auth.getUser().then(({ data }) => data.user).catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+    ]);
+    if (!user) throw redirect({ to: "/login", search: { redirect: location.href || "/vendor" } });
+  },
   pendingComponent: () => <PendingScreen label="Loading vendor dashboard…" />,
   pendingMs: 0,
   errorComponent: ({ error }) => (
