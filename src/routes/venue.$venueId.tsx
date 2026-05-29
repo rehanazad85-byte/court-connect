@@ -22,6 +22,7 @@ const venueQuery = (venueId: string) =>
 const venueSearchSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   players: z.number().int().min(1).max(64).optional(),
+  city: z.string().min(1).max(80).optional(),
 });
 
 export const Route = createFileRoute("/venue/$venueId")({
@@ -38,7 +39,7 @@ export const Route = createFileRoute("/venue/$venueId")({
 
 function VenuePage() {
   const { venueId } = Route.useParams();
-  const { date: prefilledDate, players: prefilledPlayers } = Route.useSearch();
+  const { date: prefilledDate, players: prefilledPlayers, city } = Route.useSearch();
   const { data } = useSuspenseQuery(venueQuery(venueId));
   const venue = data.venue;
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ function VenuePage() {
   const [durationMin, setDurationMin] = useState(60);
   const [players] = useState<number>(prefilledPlayers ?? 2);
   const [submitting, setSubmitting] = useState(false);
+  const backSearch = { city, date: dateISO, players };
 
   const availabilityQuery = useQuery({
     queryKey: ["availability", venueId, dateISO, durationMin],
@@ -88,8 +90,12 @@ function VenuePage() {
           dateISO, dateLabel: dayLabel, time, durationMin, players,
           resourceIds: [], resourceLabels: [],
           pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
+          searchActivity: venue.activity,
+          searchCity: city ?? venue.city ?? null,
         });
-        navigate({ to: "/login", search: { redirect: `/venue/${venue.id}` } });
+        const qs = new URLSearchParams({ date: dateISO, players: String(players) });
+        if (city) qs.set("city", city);
+        navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
         return;
       }
 
@@ -102,7 +108,7 @@ function VenuePage() {
         setTime(null);
         return;
       }
-      bookingStore.set({});
+      bookingStore.reset();
       navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Booking failed");
@@ -113,7 +119,7 @@ function VenuePage() {
 
   return (
     <PhoneShell>
-      <TopBar title={venue.name} subtitle={`${venue.type} · ${ACTIVITY_LABELS[venue.activity] ?? venue.activity}`} back="/" right="heart" />
+      <TopBar title={venue.name} subtitle={`${venue.type} · ${ACTIVITY_LABELS[venue.activity] ?? venue.activity}`} back={{ to: "/activity/$activity", params: { activity: venue.activity }, search: backSearch }} right="heart" />
 
       <div className="px-5">
         {venue.cover_image && (
@@ -164,9 +170,10 @@ function VenuePage() {
             {Array.from({ length: 16 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-muted" />)}
           </div>
         ) : slots.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            No time slots available for this date. The venue may be closed, fully booked, or has no remaining slots today.
-          </p>
+          <div className="mt-4 rounded-2xl border border-dashed p-5 text-center">
+            <p className="text-sm font-semibold">No time slots available</p>
+            <p className="mt-1 text-xs text-muted-foreground">Try another date or duration for this venue.</p>
+          </div>
 
         ) : (
           <div className="mt-3 grid grid-cols-4 gap-2">
