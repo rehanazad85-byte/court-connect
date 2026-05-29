@@ -12,6 +12,8 @@ export type BookingState = {
   resourceIds: string[];
   resourceLabels: string[];
   pricePerCourtPence: number | null;
+  searchActivity: string | null;
+  searchCity: string | null;
 };
 
 const initial: BookingState = {
@@ -26,6 +28,8 @@ const initial: BookingState = {
   resourceIds: [],
   resourceLabels: [],
   pricePerCourtPence: null,
+  searchActivity: null,
+  searchCity: null,
 };
 
 let state: BookingState = { ...initial };
