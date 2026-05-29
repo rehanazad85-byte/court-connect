@@ -27,8 +27,20 @@ const vendorBookingsQuery = queryOptions({
   queryFn: () => listVendorBookings(),
 });
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => window.setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 function rolesQueryOptions(ready: boolean) {
-  return { queryKey: ["my-roles"], queryFn: () => myRoles(), enabled: ready };
+  return {
+    queryKey: ["my-roles"],
+    queryFn: () => withTimeout(myRoles(), 5000, { roles: [] }),
+    enabled: ready,
+    retry: false,
+  };
 }
 
 export const Route = createFileRoute("/vendor")({
