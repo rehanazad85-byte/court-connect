@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Calendar, Building2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { PhoneShell } from "@/components/PhoneShell";
 import { PendingScreen } from "@/components/PendingScreen";
+import { useAuth } from "@/hooks/use-auth";
 import {
   listMyVenues,
   listVendorBookings,
@@ -50,33 +50,16 @@ export const Route = createFileRoute("/vendor")({
 
 function VendorAuthGate() {
   const nav = useNavigate();
-  const [state, setState] = useState<"checking" | "allowed" | "redirecting">("checking");
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    let cancelled = false;
-    const check = async (session: { user?: unknown } | null) => {
-      if (cancelled) return;
-      if (!session?.user) {
-        setState("redirecting");
-        await nav({ to: "/login", search: { redirect: "/vendor" }, replace: true });
-        return;
-      }
-      setState("allowed");
-    };
-    // React to live auth changes (handles sign-in completing after mount).
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      void check(session);
-    });
-    // Initial read.
-    void supabase.auth.getSession().then(({ data }) => check(data.session));
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, [nav]);
+    if (!loading && !user) {
+      void nav({ to: "/login", search: { redirect: "/vendor" }, replace: true });
+    }
+  }, [loading, nav, user]);
 
-  if (state !== "allowed") {
-    return <PendingScreen label={state === "redirecting" ? "Opening sign in…" : "Checking vendor session…"} />;
+  if (loading || !user) {
+    return <PendingScreen label={!user && !loading ? "Opening sign in…" : "Checking vendor session…"} />;
   }
 
   return <VendorPage />;
