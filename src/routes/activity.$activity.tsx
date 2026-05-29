@@ -81,7 +81,7 @@ function ActivityPage() {
               key={v.id}
               to="/venue/$venueId"
               params={{ venueId: v.id }}
-              search={{ date, players }}
+              search={{ city, date, players }}
               className="block overflow-hidden rounded-2xl bg-card shadow-soft transition active:scale-[.99]"
             >
               <div className="relative">
