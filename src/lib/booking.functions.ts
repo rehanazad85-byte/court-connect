@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // Public (anon) supabase client used inside server fns for unauthenticated reads.
 // Built per-call to stay stateless across worker invocations.
@@ -125,11 +126,10 @@ export const getAvailability = createServerFn({ method: "GET" })
     }).parse(input),
   )
   .handler(async ({ data }) => {
-    const sb = publicSupabase();
+    const sb = supabaseAdmin;
     const [y, m, d] = data.dateISO.split("-").map(Number);
-    // Day window in UTC (simple MVP — venue-local TZ is a future iteration)
     const dayStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-    const dayEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
+    const dayEnd = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
     const dow = dayStart.getUTCDay();
 
     const [{ data: venue }, { data: resources }, { data: hours }, { data: pricing }, { data: blackouts }] =
@@ -150,11 +150,12 @@ export const getAvailability = createServerFn({ method: "GET" })
       .from("booking_resources")
       .select("resource_id, starts_at, ends_at, status")
       .in("resource_id", resourceIds)
+      .in("status", ["confirmed", "pending"])
       .lt("starts_at", dayEnd.toISOString())
       .gt("ends_at", dayStart.toISOString());
 
-    // Use the first matching pricing rule's slot_step for the day, or default 30.
-    const step = pricing?.[0]?.slot_step_min ?? 30;
+    const validSteps = (pricing ?? []).map((p) => p.slot_step_min).filter((n) => Number.isFinite(n) && n > 0);
+    const step = validSteps.length > 0 ? Math.min(...validSteps) : 30;
     const slots: { time: string; startMin: number; pricePence: number; availableResourceIds: string[] }[] = [];
     const nowMs = Date.now();
 
@@ -170,7 +171,7 @@ export const getAvailability = createServerFn({ method: "GET" })
       const available = resources.filter((r) => {
         const conflictBooking = (bookings ?? []).some(
           (b) =>
-            b.status === "confirmed" &&
+            (b.status === "confirmed" || b.status === "pending") &&
             b.resource_id === r.id &&
             new Date(b.starts_at).getTime() < slotEnd &&
             new Date(b.ends_at).getTime() > slotStart,
