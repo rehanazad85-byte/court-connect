@@ -132,13 +132,12 @@ export const getAvailability = createServerFn({ method: "GET" })
     const dayEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
     const dow = dayStart.getUTCDay();
 
-    const [{ data: venue }, { data: resources }, { data: hours }, { data: pricing }, { data: bookings }, { data: blackouts }] =
+    const [{ data: venue }, { data: resources }, { data: hours }, { data: pricing }, { data: blackouts }] =
       await Promise.all([
         sb.from("venues").select("id").eq("id", data.venueId).eq("is_published", true).maybeSingle(),
         sb.from("resources").select("id, name").eq("venue_id", data.venueId).eq("is_active", true).order("sort_order"),
         sb.from("opening_hours").select("day_of_week, open_min, close_min").eq("venue_id", data.venueId).eq("day_of_week", dow),
         sb.from("pricing_rules").select("day_of_week, start_min, end_min, price_per_hour_pence, slot_step_min, min_duration_min").eq("venue_id", data.venueId).eq("day_of_week", dow),
-        sb.from("booking_resources").select("resource_id, starts_at, ends_at, status, resources!inner(venue_id)").eq("resources.venue_id", data.venueId).lt("starts_at", dayEnd.toISOString()).gt("ends_at", dayStart.toISOString()),
         sb.from("blackouts").select("resource_id, starts_at, ends_at").eq("venue_id", data.venueId).lt("starts_at", dayEnd.toISOString()).gt("ends_at", dayStart.toISOString()),
       ]);
 
@@ -146,6 +145,13 @@ export const getAvailability = createServerFn({ method: "GET" })
     if (!venue || !open || !resources || resources.length === 0) {
       return { slots: [], resources: resources ?? [], reason: !venue ? "venue_unavailable" : !open ? "closed" : "no_resources" };
     }
+    const resourceIds = resources.map((r) => r.id);
+    const { data: bookings } = await sb
+      .from("booking_resources")
+      .select("resource_id, starts_at, ends_at, status")
+      .in("resource_id", resourceIds)
+      .lt("starts_at", dayEnd.toISOString())
+      .gt("ends_at", dayStart.toISOString());
 
     // Use the first matching pricing rule's slot_step for the day, or default 30.
     const step = pricing?.[0]?.slot_step_min ?? 30;
