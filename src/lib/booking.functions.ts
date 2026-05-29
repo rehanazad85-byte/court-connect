@@ -3,7 +3,6 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // Public (anon) supabase client used inside server fns for unauthenticated reads.
 // Built per-call to stay stateless across worker invocations.
@@ -11,6 +10,14 @@ function publicSupabase() {
   return createClient<Database>(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
+
+function adminSupabase() {
+  return createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 }
@@ -126,7 +133,7 @@ export const getAvailability = createServerFn({ method: "GET" })
     }).parse(input),
   )
   .handler(async ({ data }) => {
-    const sb = supabaseAdmin;
+    const sb = adminSupabase();
     const [y, m, d] = data.dateISO.split("-").map(Number);
     const dayStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
     const dayEnd = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
