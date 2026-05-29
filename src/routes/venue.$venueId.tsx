@@ -10,6 +10,7 @@ import { ACTIVITY_LABELS } from "@/lib/mock-data";
 import { bookingStore } from "@/lib/booking-store";
 import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const venueQuery = (venueId: string) =>
   queryOptions({
