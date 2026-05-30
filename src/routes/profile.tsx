@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { PhoneShell } from "@/components/PhoneShell";
+import { PendingScreen } from "@/components/PendingScreen";
 import { useAuth } from "@/hooks/use-auth";
 import { Building2, LogOut, User, ChevronRight } from "lucide-react";
 
@@ -11,6 +13,16 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const { user, loading, signOut } = useAuth();
   const nav = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      void nav({ to: "/login", search: { redirect: "/profile" }, replace: true });
+    }
+  }, [loading, user, nav]);
+
+  if (loading || !user) {
+    return <PendingScreen label="Checking session…" />;
+  }
 
   return (
     <PhoneShell>
