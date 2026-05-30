@@ -1,8 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Calendar, X } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
+import { PendingScreen } from "@/components/PendingScreen";
 import { myBookings, cancelBooking } from "@/lib/booking.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { formatPence } from "@/lib/mock-data";
