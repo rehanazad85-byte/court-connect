@@ -18,15 +18,26 @@ export const Route = createFileRoute("/bookings")({
 
 function BookingsPage() {
   const { user, loading: authLoading } = useAuth();
+  const nav = useNavigate();
   const qc = useQueryClient();
   const fetchBookings = useServerFn(myBookings);
   const cancel = useServerFn(cancelBooking);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      void nav({ to: "/login", search: { redirect: "/bookings" }, replace: true });
+    }
+  }, [authLoading, user, nav]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-bookings", user?.id ?? "anon"],
     queryFn: () => fetchBookings(),
     enabled: !!user,
   });
+
+  if (authLoading || !user) {
+    return <PendingScreen label="Checking session…" />;
+  }
 
   const bookings = data?.bookings ?? [];
   const now = Date.now();
@@ -50,20 +61,7 @@ function BookingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">Your upcoming and past sessions.</p>
       </div>
 
-      {authLoading ? (
-        <div className="px-5 pt-8 text-sm text-muted-foreground">Loading…</div>
-      ) : !user ? (
-        <div className="px-5 pt-6">
-          <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Sign in to see your bookings.
-            <div className="mt-3">
-              <Link to="/login" search={{ redirect: "/bookings" }} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-                Sign in
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="px-5 pt-8 text-sm text-muted-foreground">Loading bookings…</div>
       ) : error ? (
         <div className="px-5 pt-6">
