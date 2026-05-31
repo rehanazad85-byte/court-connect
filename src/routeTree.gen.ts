@@ -16,6 +16,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as ConfirmationRouteImport } from './routes/confirmation'
+import { Route as BookingsReceivedRouteImport } from './routes/bookings-received'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VenueVenueIdRouteImport } from './routes/venue.$venueId'
@@ -59,6 +60,11 @@ const ConfirmationRoute = ConfirmationRouteImport.update({
   path: '/confirmation',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookingsReceivedRoute = BookingsReceivedRouteImport.update({
+  id: '/bookings-received',
+  path: '/bookings-received',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookingsRoute = BookingsRouteImport.update({
   id: '/bookings',
   path: '/bookings',
@@ -98,6 +104,7 @@ const VenueVenueIdCourtsRoute = VenueVenueIdCourtsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookings': typeof BookingsRoute
+  '/bookings-received': typeof BookingsReceivedRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookings': typeof BookingsRoute
+  '/bookings-received': typeof BookingsReceivedRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/bookings': typeof BookingsRoute
+  '/bookings-received': typeof BookingsReceivedRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/bookings'
+    | '/bookings-received'
     | '/confirmation'
     | '/favorites'
     | '/login'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/bookings'
+    | '/bookings-received'
     | '/confirmation'
     | '/favorites'
     | '/login'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/bookings'
+    | '/bookings-received'
     | '/confirmation'
     | '/favorites'
     | '/login'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookingsRoute: typeof BookingsRoute
+  BookingsReceivedRoute: typeof BookingsReceivedRoute
   ConfirmationRoute: typeof ConfirmationRoute
   FavoritesRoute: typeof FavoritesRoute
   LoginRoute: typeof LoginRoute
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/confirmation'
       fullPath: '/confirmation'
       preLoaderRoute: typeof ConfirmationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings-received': {
+      id: '/bookings-received'
+      path: '/bookings-received'
+      fullPath: '/bookings-received'
+      preLoaderRoute: typeof BookingsReceivedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bookings': {
@@ -340,6 +360,7 @@ const VenueVenueIdRouteWithChildren = VenueVenueIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookingsRoute: BookingsRoute,
+  BookingsReceivedRoute: BookingsReceivedRoute,
   ConfirmationRoute: ConfirmationRoute,
   FavoritesRoute: FavoritesRoute,
   LoginRoute: LoginRoute,
@@ -353,3 +374,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
