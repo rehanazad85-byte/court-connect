@@ -25,6 +25,15 @@ export const Route = createFileRoute("/confirmation")({
     const ref = (location.search as { ref?: string }).ref;
     if (ref) return context.queryClient.ensureQueryData(bookingByRef(ref));
   },
+  errorComponent: ({ error }) => (
+    <div className="min-h-dvh bg-ink text-ink-foreground">
+      <div className="mx-auto max-w-md px-5 py-10 text-center">
+        <h1 className="text-xl font-bold">We couldn't load your booking</h1>
+        <p className="mt-2 text-sm text-white/70">{error instanceof Error ? error.message : "Unknown error"}</p>
+        <Link to="/bookings" className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Go to My Bookings</Link>
+      </div>
+    </div>
+  ),
   component: ConfirmationPage,
 });
 

@@ -45,6 +45,13 @@ function SummaryPage() {
   const onPay = async () => {
     setSubmitting(true);
     try {
+      // Re-check auth before submitting — if session lapsed, redirect to login.
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        toast.error("You need to sign in to confirm a booking.");
+        navigate({ to: "/login", search: { redirect: "/summary" } });
+        return;
+      }
       const res = await submit({
         data: {
           venueId: booking.venueId!,
@@ -57,7 +64,9 @@ function SummaryPage() {
       bookingStore.reset();
       navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Booking failed");
+      console.error("createBooking failed:", e);
+      const msg = e instanceof Error ? e.message : "Booking failed";
+      toast.error(msg, { description: "Please try again or pick a different time." });
       setSubmitting(false);
     }
   };
