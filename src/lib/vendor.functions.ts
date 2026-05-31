@@ -165,12 +165,45 @@ export const listVendorBookings = createServerFn({ method: "GET" })
     if (ids.length === 0) return { bookings: [], venues: [] };
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, reference, status, starts_at, ends_at, players, total_pence, venue_id")
+      .select("id, reference, status, starts_at, ends_at, players, total_pence, venue_id, user_id")
       .in("venue_id", ids)
       .order("starts_at", { ascending: false })
-      .limit(200);
+      .limit(300);
     if (error) throw new Error(error.message);
-    return { bookings: data ?? [], venues: venues ?? [] };
+    const bookings = data ?? [];
+    const bookingIds = bookings.map((b) => b.id);
+    const userIds = Array.from(new Set(bookings.map((b) => b.user_id)));
+
+    const [resRes, profRes] = await Promise.all([
+      bookingIds.length
+        ? supabase
+            .from("booking_resources")
+            .select("booking_id, resources(name, kind)")
+            .in("booking_id", bookingIds)
+        : Promise.resolve({ data: [] as any[] }),
+      userIds.length
+        ? supabase
+            .from("profiles")
+            .select("user_id, display_name")
+            .in("user_id", userIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const resourcesByBooking = new Map<string, { name: string; kind: string }[]>();
+    (resRes.data ?? []).forEach((r: any) => {
+      const list = resourcesByBooking.get(r.booking_id) ?? [];
+      if (r.resources) list.push({ name: r.resources.name, kind: r.resources.kind });
+      resourcesByBooking.set(r.booking_id, list);
+    });
+    const nameByUser = new Map<string, string>();
+    (profRes.data ?? []).forEach((p: any) => nameByUser.set(p.user_id, p.display_name ?? ""));
+
+    const enriched = bookings.map((b) => ({
+      ...b,
+      customer_name: nameByUser.get(b.user_id) ?? "Customer",
+      resources: resourcesByBooking.get(b.id) ?? [],
+    }));
+    return { bookings: enriched, venues: venues ?? [] };
   });
 
 export const createVenue = createServerFn({ method: "POST" })
