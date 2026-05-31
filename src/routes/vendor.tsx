@@ -322,6 +322,29 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatLink({
+  to,
+  filter,
+  label,
+  value,
+}: {
+  to: "/bookings-received";
+  filter: "today" | "upcoming" | "past" | "cancelled";
+  label: string;
+  value: string;
+}) {
+  return (
+    <Link
+      to={to}
+      search={{ filter }}
+      className="rounded-2xl bg-card p-4 shadow-soft text-left hover:bg-accent/30 transition-colors"
+    >
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-bold">{value}</div>
+    </Link>
+  );
+}
+
 function Field({
   label,
   help,
