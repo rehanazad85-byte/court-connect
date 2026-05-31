@@ -1,17 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, CalendarDays, Heart, User, Building2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
-const tabs = [
+const allTabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/bookings", label: "Bookings", icon: CalendarDays },
   { to: "/favorites", label: "Favorites", icon: Heart },
-  { to: "/vendor", label: "Vendor", icon: Building2 },
+  { to: "/vendor", label: "Vendor", icon: Building2, authOnly: true },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 
 export function BottomNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const visibleTabs = tabs;
+  const { user } = useAuth();
+  const visibleTabs = allTabs.filter((t) => ("authOnly" in t && t.authOnly ? !!user : true));
   return (
     <nav className="sticky bottom-0 z-30 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
       <ul className={`mx-auto grid max-w-md`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
