@@ -191,9 +191,19 @@ function VendorDashboard() {
       </div>
 
       <div className="px-5 pt-5 grid grid-cols-3 gap-2">
-        <Stat label="Today" value={String(today.length)} />
-        <Stat label="Upcoming" value={String(upcoming.length)} />
-        <Stat label="7-day rev" value={formatPence(revenue7d)} />
+        <StatLink to="/bookings-received" filter="today" label="Today" value={String(today.length)} />
+        <StatLink to="/bookings-received" filter="upcoming" label="Upcoming" value={String(upcoming.length)} />
+        <StatLink to="/bookings-received" filter="upcoming" label="7-day rev" value={formatPence(revenue7d)} />
+      </div>
+
+      <div className="px-5 pt-4">
+        <Link
+          to="/bookings-received"
+          search={{ filter: "upcoming" }}
+          className="flex h-11 w-full items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-sm font-bold text-primary"
+        >
+          View Bookings Received →
+        </Link>
       </div>
 
       <div className="px-5 pt-6">
