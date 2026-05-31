@@ -299,12 +299,28 @@ export const myBookings = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, status, starts_at, ends_at, players, total_pence, reference, venues(id, name, cover_image, type)")
+      .select("id, status, starts_at, ends_at, players, total_pence, service_fee_pence, reference, venue_id, venues(id, name, cover_image, type, city, address)")
       .eq("user_id", userId)
       .order("starts_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return { bookings: data ?? [] };
+    const bookings = data ?? [];
+    const ids = bookings.map((b) => b.id);
+    const resourcesByBooking = new Map<string, { name: string; kind: string }[]>();
+    if (ids.length > 0) {
+      const { data: brs } = await supabase
+        .from("booking_resources")
+        .select("booking_id, resources(name, kind)")
+        .in("booking_id", ids);
+      (brs ?? []).forEach((r: any) => {
+        const list = resourcesByBooking.get(r.booking_id) ?? [];
+        if (r.resources) list.push({ name: r.resources.name, kind: r.resources.kind });
+        resourcesByBooking.set(r.booking_id, list);
+      });
+    }
+    return {
+      bookings: bookings.map((b) => ({ ...b, resources: resourcesByBooking.get(b.id) ?? [] })),
+    };
   });
 
 export const cancelBooking = createServerFn({ method: "POST" })
