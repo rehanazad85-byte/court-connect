@@ -158,7 +158,7 @@ function SearchPanel() {
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder="Anywhere"
-          className="absolute inset-0 h-full w-full bg-transparent pl-12 pr-4 pt-5 text-sm font-semibold outline-none placeholder:text-muted-foreground/60"
+          className="absolute inset-0 h-full w-full bg-transparent pl-12 pr-4 pt-5 text-sm font-semibold text-transparent caret-foreground outline-none placeholder:text-transparent"
         />
       </FieldRow>
       <FieldRow icon={Calendar} label="Date" value={date ? formatDateLabel(date) : "Any date"}>

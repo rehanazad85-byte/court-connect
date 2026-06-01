@@ -1,6 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { Home, CalendarDays, Heart, User, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { myRoles } from "@/lib/vendor.functions";
 
 const allTabs = [
   { to: "/", label: "Home", icon: Home },
@@ -13,7 +16,15 @@ const allTabs = [
 export function BottomNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { user } = useAuth();
-  const visibleTabs = allTabs.filter((t) => ("authOnly" in t && t.authOnly ? !!user : true));
+  const fetchRoles = useServerFn(myRoles);
+  const roles = useQuery({
+    queryKey: ["bottom-nav-roles", user?.id],
+    queryFn: () => fetchRoles(),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const isVendor = roles.data?.roles.includes("vendor") ?? false;
+  const visibleTabs = allTabs.filter((t) => ("authOnly" in t && t.authOnly ? isVendor : true));
   return (
     <nav className="sticky bottom-0 z-30 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
       <ul className={`mx-auto grid max-w-md`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
