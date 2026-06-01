@@ -38,7 +38,7 @@ function BookingsReceivedGate() {
 function BookingsReceivedPage() {
   const search = Route.useSearch();
   const nav = useNavigate();
-  const activeFilter: Filter = search.filter ?? "upcoming";
+  const activeFilter: Filter = search.filter ?? "all";
   const fetch = useServerFn(listVendorBookings);
   const { data, isLoading, error } = useQuery({
     queryKey: ["vendor-bookings"],
@@ -48,6 +48,7 @@ function BookingsReceivedPage() {
   });
 
   const now = Date.now();
+  const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const todayEnd = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
   const all = (data?.bookings ?? []) as any[];
   const venuesById = new Map((data?.venues ?? []).map((v: any) => [v.id, v]));
@@ -56,14 +57,15 @@ function BookingsReceivedPage() {
     const t = new Date(b.starts_at).getTime();
     if (activeFilter === "cancelled") return b.status === "cancelled";
     if (b.status === "cancelled") return false;
-    if (activeFilter === "today") return t >= now - 12 * 3600_000 && t <= todayEnd;
+    if (activeFilter === "today") return t >= todayStart && t <= todayEnd;
     if (activeFilter === "upcoming") return t >= now;
     if (activeFilter === "past") return t < now;
     return true;
   });
 
   const counts = {
-    today: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() >= now - 12 * 3600_000 && new Date(b.starts_at).getTime() <= todayEnd).length,
+    all: all.length,
+    today: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() >= todayStart && new Date(b.starts_at).getTime() <= todayEnd).length,
     upcoming: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() >= now).length,
     past: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() < now).length,
     cancelled: all.filter((b) => b.status === "cancelled").length,
@@ -86,6 +88,7 @@ function BookingsReceivedPage() {
 
       <div className="px-5 pt-4 flex gap-2 overflow-x-auto no-scrollbar">
         {([
+          ["all", `All (${counts.all})`],
           ["today", `Today (${counts.today})`],
           ["upcoming", `Upcoming (${counts.upcoming})`],
           ["past", `Past (${counts.past})`],
