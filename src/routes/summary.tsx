@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Calendar, Clock, LayoutGrid, Users, Lock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,13 +11,14 @@ import { addMinutesToTime, combineISO } from "@/lib/date-utils";
 import { createBooking } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { BookingDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug, summaryDataExists, type BookingDebugSnapshot } from "@/lib/booking-debug";
 
 type BookingDebug = {
   clickFired: boolean;
   authenticated: boolean | null;
   createBookingCalled: boolean;
   payload: Record<string, unknown> | null;
-  error: string | null;
+  error: BookingDebugSnapshot | null;
   result: Record<string, unknown> | null;
 };
 
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/summary")({
         <button onClick={() => reset()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Try again</button>
         <a href="/" className="rounded-full border px-5 py-2.5 text-sm font-semibold">Go home</a>
       </div>
+      <BookingRouteErrorPanel component="SummaryRoute.errorComponent" error={error} />
     </div>
   ),
   component: SummaryPage,
@@ -66,18 +68,41 @@ function SummaryPage() {
   const submit = useServerFn(createBooking);
   const [submitting, setSubmitting] = useState(false);
   const [debug, setDebug] = useState<BookingDebug>(initialDebug);
+  const hasSummaryData = summaryDataExists(booking);
 
-  if (!booking.venueId || !booking.dateISO || !booking.time || booking.resourceIds.length === 0) {
+  const missingSummarySnapshot = useMemo(() => {
+    if (hasSummaryData) return null;
+    return buildBookingDebugSnapshot({
+      component: "SummaryPage",
+      error: new Error("Missing booking summary data. Please choose the venue and time again."),
+      booking,
+      sessionIdPresent: null,
+      createBookingCalled: false,
+    });
+  }, [booking, hasSummaryData]);
+
+  useEffect(() => {
+    if (missingSummarySnapshot) logBookingDebug(missingSummarySnapshot);
+  }, [missingSummarySnapshot]);
+
+  if (!hasSummaryData) {
     return (
       <PhoneShell>
         <TopBar title="Booking Summary" back="/" />
-        <div className="px-5 py-10 text-center text-sm text-muted-foreground">No booking in progress. Start by picking a venue.</div>
+        <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+          No booking in progress. Please choose the venue and time again.
+          <button onClick={() => navigate({ to: "/" })} className="mt-5 h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground">Choose venue again</button>
+          {missingSummarySnapshot && <BookingDebugPanel snapshot={missingSummarySnapshot} />}
+        </div>
       </PhoneShell>
     );
   }
 
+  const venueId = booking.venueId!;
+  const dateISO = booking.dateISO!;
+  const selectedTime = booking.time!;
   const hours = booking.durationMin / 60;
-  const endTime = addMinutesToTime(booking.time, booking.durationMin);
+  const endTime = addMinutesToTime(selectedTime, booking.durationMin);
   const perCourt = booking.pricePerCourtPence ?? 0;
   const subtotal = perCourt * booking.resourceIds.length;
   const fee = Math.round(subtotal * 0.02);
@@ -85,10 +110,10 @@ function SummaryPage() {
 
   const onPay = async () => {
     setSubmitting(true);
-    const startsAtISO = combineISO(booking.dateISO!, booking.time!);
+    const startsAtISO = combineISO(dateISO, selectedTime);
     const endsAtISO = new Date(new Date(startsAtISO).getTime() + booking.durationMin * 60_000).toISOString();
     const debugPayload = {
-      venueId: booking.venueId,
+          venueId,
       startsAtISO,
       endsAtISO,
       durationMin: booking.durationMin,
@@ -108,9 +133,11 @@ function SummaryPage() {
       const { data: u } = await supabase.auth.getUser();
       setDebug((d) => ({ ...d, authenticated: !!u.user, payload: { ...debugPayload, userId: u.user?.id ?? null } }));
       if (!u.user) {
-        const msg = "You need to sign in to confirm a booking.";
-        setDebug((d) => ({ ...d, error: msg }));
-        toast.error(msg);
+        const error = new Error("You need to sign in to confirm a booking.");
+        const snapshot = buildBookingDebugSnapshot({ component: "SummaryPage.onPay", error, booking, sessionIdPresent: false, createBookingCalled: false, payload: debugPayload });
+        logBookingDebug(snapshot);
+        setDebug((d) => ({ ...d, error: snapshot }));
+        toast.error(error.message);
         navigate({ to: "/login", search: { redirect: "/summary" } });
         return;
       }
@@ -124,16 +151,18 @@ function SummaryPage() {
         booking.pricePerCourtPence == null ? "total/quote data" : null,
       ].filter(Boolean) as string[];
       if (missing.length > 0) {
-        const msg = `Missing booking data: ${missing.join(", ")}`;
-        setDebug((d) => ({ ...d, error: msg }));
-        toast.error(msg);
+        const error = new Error(`Missing booking data: ${missing.join(", ")}`);
+        const snapshot = buildBookingDebugSnapshot({ component: "SummaryPage.onPay", error, booking, sessionIdPresent: true, createBookingCalled: false, payload: debugPayload });
+        logBookingDebug(snapshot);
+        setDebug((d) => ({ ...d, error: snapshot }));
+        toast.error(error.message);
         setSubmitting(false);
         return;
       }
       setDebug((d) => ({ ...d, createBookingCalled: true }));
       const res = await submit({
         data: {
-          venueId: booking.venueId!,
+          venueId,
           startsAtISO,
           durationMin: booking.durationMin,
           resourceIds: booking.resourceIds,
@@ -148,9 +177,10 @@ function SummaryPage() {
       ]);
       navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
     } catch (e) {
-      console.error("createBooking failed:", e);
       const msg = errorMessage(e);
-      setDebug((d) => ({ ...d, error: msg }));
+      const snapshot = buildBookingDebugSnapshot({ component: "SummaryPage.onPay", error: e, booking, sessionIdPresent: true, createBookingCalled: true, payload: debugPayload });
+      logBookingDebug(snapshot);
+      setDebug((d) => ({ ...d, error: snapshot }));
       toast.error(msg, { description: "Please try again or pick a different time." });
       setSubmitting(false);
     }
@@ -162,8 +192,8 @@ function SummaryPage() {
         title="Booking Summary"
         back={{
           to: "/venue/$venueId/courts",
-          params: { venueId: booking.venueId },
-          search: { city: booking.searchCity ?? undefined, date: booking.dateISO, players: booking.players },
+          params: { venueId },
+          search: { city: booking.searchCity ?? undefined, date: dateISO, players: booking.players },
         }}
       />
 
@@ -179,7 +209,7 @@ function SummaryPage() {
         <h3 className="mt-6 text-base font-bold">Booking Details</h3>
         <div className="mt-3 space-y-3 rounded-2xl bg-card p-4 shadow-soft">
           <Row icon={Calendar} label="Date" value={booking.dateLabel ?? ""} />
-          <Row icon={Clock} label="Time" value={`${booking.time} – ${endTime} (${hours} hour${hours === 1 ? "" : "s"})`} />
+          <Row icon={Clock} label="Time" value={`${selectedTime} – ${endTime} (${hours} hour${hours === 1 ? "" : "s"})`} />
           <Row icon={LayoutGrid} label="Courts" value={booking.resourceLabels.join(", ")} />
           <Row icon={Users} label="Players" value={`${booking.players} Players`} />
         </div>
@@ -201,7 +231,7 @@ function SummaryPage() {
             <DebugLine label="Authenticated" value={debug.authenticated === null ? "checking" : debug.authenticated ? "yes" : "no"} />
             <DebugLine label="createBooking called" value={debug.createBookingCalled ? "yes" : "no"} />
             {debug.payload && <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.payload, null, 2)}</pre>}
-            {debug.error && <div className="mt-2 font-semibold text-destructive">Error: {debug.error}</div>}
+            {debug.error && <BookingDebugPanel snapshot={debug.error} />}
             {debug.result && <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.result, null, 2)}</pre>}
           </div>
         )}

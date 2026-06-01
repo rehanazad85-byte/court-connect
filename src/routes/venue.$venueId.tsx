@@ -11,12 +11,13 @@ import { bookingStore } from "@/lib/booking-store";
 import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { BookingDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug, type BookingDebugSnapshot } from "@/lib/booking-debug";
 
 type ContinueDebug = {
   clickFired: boolean;
   authenticated: boolean | null;
   payload: Record<string, unknown> | null;
-  error: string | null;
+  error: BookingDebugSnapshot | null;
 };
 
 const initialContinueDebug: ContinueDebug = {
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/venue/$venueId")({
         <button onClick={() => reset()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Try again</button>
         <a href="/" className="rounded-full border px-5 py-2.5 text-sm font-semibold">Go home</a>
       </div>
+      <BookingRouteErrorPanel component="VenueRoute.errorComponent" error={error} />
     </div>
   ),
   component: VenuePage,
@@ -115,9 +117,11 @@ function VenuePage() {
       const { data: u } = await supabase.auth.getUser();
       setDebug((d) => ({ ...d, authenticated: !!u.user, payload: { ...payload, userId: u.user?.id ?? null } }));
       if (!slot || slot.availableResourceIds.length === 0) {
-        const msg = "No resources are available for that time. Please choose another slot.";
-        setDebug((d) => ({ ...d, error: msg }));
-        toast.error(msg);
+        const error = new Error("No resources are available for that time. Please choose another slot.");
+        const snapshot = buildBookingDebugSnapshot({ component: "VenuePage.goNext", error, sessionIdPresent: !!u.user, createBookingCalled: false, payload });
+        logBookingDebug(snapshot);
+        setDebug((d) => ({ ...d, error: snapshot }));
+        toast.error(error.message);
         return;
       }
       const selectedResourceId = slot.availableResourceIds[0];
@@ -133,7 +137,10 @@ function VenuePage() {
         searchCity: city ?? venue.city ?? null,
       });
       if (!u.user) {
-        setDebug((d) => ({ ...d, error: "Not authenticated — redirecting to login." }));
+        const error = new Error("Not authenticated — redirecting to login.");
+        const snapshot = buildBookingDebugSnapshot({ component: "VenuePage.goNext", error, sessionIdPresent: false, createBookingCalled: false, payload });
+        logBookingDebug(snapshot);
+        setDebug((d) => ({ ...d, error: snapshot }));
         const qs = new URLSearchParams({ date: dateISO, players: String(players) });
         if (city) qs.set("city", city);
         navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
@@ -142,7 +149,9 @@ function VenuePage() {
       navigate({ to: "/summary" });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Booking failed";
-      setDebug((d) => ({ ...d, error: msg }));
+      const snapshot = buildBookingDebugSnapshot({ component: "VenuePage.goNext", error: e, sessionIdPresent: null, createBookingCalled: false, payload });
+      logBookingDebug(snapshot);
+      setDebug((d) => ({ ...d, error: snapshot }));
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -231,7 +240,7 @@ function VenuePage() {
             <DebugLine label="Continue click fired" value={debug.clickFired ? "yes" : "no"} />
             <DebugLine label="Authenticated" value={debug.authenticated === null ? "checking" : debug.authenticated ? "yes" : "no"} />
             {debug.payload && <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.payload, null, 2)}</pre>}
-            {debug.error && <div className="mt-2 font-semibold text-destructive">Error: {debug.error}</div>}
+            {debug.error && <BookingDebugPanel snapshot={debug.error} />}
           </div>
         )}
       </div>
