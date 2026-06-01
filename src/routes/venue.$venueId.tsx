@@ -90,9 +90,26 @@ function VenuePage() {
   const goNext = async () => {
     if (!time) return;
     setSubmitting(true);
+    const slot = slots.find((s) => s.time === time);
+    const payload = {
+      venueId: venue.id,
+      startsAt: `${dateISO}T${time}`,
+      durationMin,
+      availableResourceIds: slot?.availableResourceIds ?? [],
+      players,
+      pricePerResourcePence: slot?.pricePence ?? null,
+    };
+    setDebug({ ...initialContinueDebug, clickFired: true, payload });
     try {
       // Require auth before reserving; bounce to login otherwise.
       const { data: u } = await supabase.auth.getUser();
+      setDebug((d) => ({ ...d, authenticated: !!u.user, payload: { ...payload, userId: u.user?.id ?? null } }));
+      if (!slot || slot.availableResourceIds.length === 0) {
+        const msg = "No resources are available for that time. Please choose another slot.";
+        setDebug((d) => ({ ...d, error: msg }));
+        toast.error(msg);
+        return;
+      }
       bookingStore.set({
         venueId: venue.id,
         venueName: venue.name,
@@ -104,6 +121,7 @@ function VenuePage() {
         searchCity: city ?? venue.city ?? null,
       });
       if (!u.user) {
+        setDebug((d) => ({ ...d, error: "Not authenticated — redirecting to login." }));
         const qs = new URLSearchParams({ date: dateISO, players: String(players) });
         if (city) qs.set("city", city);
         navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
@@ -111,7 +129,9 @@ function VenuePage() {
       }
       navigate({ to: "/venue/$venueId/courts", params: { venueId: venue.id }, search: { city, date: dateISO, players } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Booking failed");
+      const msg = e instanceof Error ? e.message : "Booking failed";
+      setDebug((d) => ({ ...d, error: msg }));
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
