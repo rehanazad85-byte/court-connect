@@ -46,6 +46,16 @@ export const Route = createFileRoute("/summary")({
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/login", search: { redirect: location.href } });
   },
+  errorComponent: ({ error, reset }) => (
+    <div className="min-h-dvh bg-background p-8 text-center">
+      <h1 className="text-lg font-bold">Something went wrong on the booking summary</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{error instanceof Error ? error.message : "Unknown error"}</p>
+      <div className="mt-6 flex justify-center gap-2">
+        <button onClick={() => reset()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Try again</button>
+        <a href="/" className="rounded-full border px-5 py-2.5 text-sm font-semibold">Go home</a>
+      </div>
+    </div>
+  ),
   component: SummaryPage,
 });
 
