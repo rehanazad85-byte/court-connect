@@ -11,7 +11,7 @@ import { addMinutesToTime, combineISO } from "@/lib/date-utils";
 import { createBooking } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BookingDebugPanel, buildBookingDebugSnapshot, logBookingDebug, summaryDataExists, type BookingDebugSnapshot } from "@/lib/booking-debug";
+import { BookingDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug, summaryDataExists, type BookingDebugSnapshot } from "@/lib/booking-debug";
 
 type BookingDebug = {
   clickFired: boolean;
@@ -55,6 +55,7 @@ export const Route = createFileRoute("/summary")({
         <button onClick={() => reset()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Try again</button>
         <a href="/" className="rounded-full border px-5 py-2.5 text-sm font-semibold">Go home</a>
       </div>
+      <BookingRouteErrorPanel component="SummaryRoute.errorComponent" error={error} />
     </div>
   ),
   component: SummaryPage,
@@ -161,7 +162,7 @@ function SummaryPage() {
       setDebug((d) => ({ ...d, createBookingCalled: true }));
       const res = await submit({
         data: {
-          venueId: booking.venueId!,
+          venueId,
           startsAtISO,
           durationMin: booking.durationMin,
           resourceIds: booking.resourceIds,
@@ -191,7 +192,7 @@ function SummaryPage() {
         title="Booking Summary"
         back={{
           to: "/venue/$venueId/courts",
-          params: { venueId: booking.venueId },
+          params: { venueId },
           search: { city: booking.searchCity ?? undefined, date: dateISO, players: booking.players },
         }}
       />
