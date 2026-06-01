@@ -21,10 +21,17 @@ import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
 
-const myVenuesQuery = queryOptions({ queryKey: ["my-venues"], queryFn: () => listMyVenues() });
+const myVenuesQuery = queryOptions({
+  queryKey: ["my-venues"],
+  queryFn: () => listMyVenues(),
+  staleTime: 0,
+  refetchOnMount: "always",
+});
 const vendorBookingsQuery = queryOptions({
   queryKey: ["vendor-bookings"],
   queryFn: () => listVendorBookings(),
+  staleTime: 0,
+  refetchOnMount: "always",
 });
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Calendar, Clock, LayoutGrid, Users, Lock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/summary")({
 function SummaryPage() {
   const booking = useBooking();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const submit = useServerFn(createBooking);
   const [submitting, setSubmitting] = useState(false);
   const [debug, setDebug] = useState<BookingDebug>(initialDebug);
@@ -130,6 +132,10 @@ function SummaryPage() {
       });
       setDebug((d) => ({ ...d, result: { id: res.id, reference: res.reference, totalPence: res.totalPence } }));
       bookingStore.reset();
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["my-bookings"] }),
+        qc.invalidateQueries({ queryKey: ["vendor-bookings"] }),
+      ]);
       navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
     } catch (e) {
       console.error("createBooking failed:", e);
