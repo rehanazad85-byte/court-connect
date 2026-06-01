@@ -202,7 +202,7 @@ function VendorDashboard({ userId }: { userId: string }) {
         <p className="mt-1 text-sm text-muted-foreground">Manage venues, courts and bookings.</p>
       </div>
 
-      <VendorBookingsDebug debug={(bookings.data as any)?.debug} error={bookings.error} />
+      
 
       <div className="px-5 pt-5 grid grid-cols-3 gap-2">
         <StatLink to="/bookings-received" filter="today" label="Today" value={String(today.length)} />
