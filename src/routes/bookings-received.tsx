@@ -85,7 +85,7 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
         <p className="mt-1 text-sm text-muted-foreground">Bookings customers made at your venues.</p>
       </div>
 
-      <VendorBookingsDebug debug={(data as any)?.debug} error={error} />
+      
 
       <div className="px-5 pt-4 flex gap-2 overflow-x-auto no-scrollbar">
         {([
