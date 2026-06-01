@@ -12,6 +12,20 @@ import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type ContinueDebug = {
+  clickFired: boolean;
+  authenticated: boolean | null;
+  payload: Record<string, unknown> | null;
+  error: string | null;
+};
+
+const initialContinueDebug: ContinueDebug = {
+  clickFired: false,
+  authenticated: null,
+  payload: null,
+  error: null,
+};
+
 const venueQuery = (venueId: string) =>
   queryOptions({
     queryKey: ["venue", venueId],
@@ -50,6 +64,7 @@ function VenuePage() {
   const [durationMin, setDurationMin] = useState(60);
   const [players] = useState<number>(prefilledPlayers ?? 2);
   const [submitting, setSubmitting] = useState(false);
+  const [debug, setDebug] = useState<ContinueDebug>(initialContinueDebug);
   const backSearch = { city, date: dateISO, players };
 
   const availabilityQuery = useQuery({
@@ -75,9 +90,26 @@ function VenuePage() {
   const goNext = async () => {
     if (!time) return;
     setSubmitting(true);
+    const slot = slots.find((s) => s.time === time);
+    const payload = {
+      venueId: venue.id,
+      startsAt: `${dateISO}T${time}`,
+      durationMin,
+      availableResourceIds: slot?.availableResourceIds ?? [],
+      players,
+      pricePerResourcePence: slot?.pricePence ?? null,
+    };
+    setDebug({ ...initialContinueDebug, clickFired: true, payload });
     try {
       // Require auth before reserving; bounce to login otherwise.
       const { data: u } = await supabase.auth.getUser();
+      setDebug((d) => ({ ...d, authenticated: !!u.user, payload: { ...payload, userId: u.user?.id ?? null } }));
+      if (!slot || slot.availableResourceIds.length === 0) {
+        const msg = "No resources are available for that time. Please choose another slot.";
+        setDebug((d) => ({ ...d, error: msg }));
+        toast.error(msg);
+        return;
+      }
       bookingStore.set({
         venueId: venue.id,
         venueName: venue.name,
@@ -89,6 +121,7 @@ function VenuePage() {
         searchCity: city ?? venue.city ?? null,
       });
       if (!u.user) {
+        setDebug((d) => ({ ...d, error: "Not authenticated — redirecting to login." }));
         const qs = new URLSearchParams({ date: dateISO, players: String(players) });
         if (city) qs.set("city", city);
         navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
@@ -96,7 +129,9 @@ function VenuePage() {
       }
       navigate({ to: "/venue/$venueId/courts", params: { venueId: venue.id }, search: { city, date: dateISO, players } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Booking failed");
+      const msg = e instanceof Error ? e.message : "Booking failed";
+      setDebug((d) => ({ ...d, error: msg }));
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -178,6 +213,15 @@ function VenuePage() {
             })}
           </div>
         )}
+        {debug.clickFired && (
+          <div className="mt-4 rounded-2xl border border-dashed bg-muted/40 p-3 text-[11px] text-muted-foreground">
+            <div className="font-bold text-foreground">Booking debug</div>
+            <DebugLine label="Continue click fired" value={debug.clickFired ? "yes" : "no"} />
+            <DebugLine label="Authenticated" value={debug.authenticated === null ? "checking" : debug.authenticated ? "yes" : "no"} />
+            {debug.payload && <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.payload, null, 2)}</pre>}
+            {debug.error && <div className="mt-2 font-semibold text-destructive">Error: {debug.error}</div>}
+          </div>
+        )}
       </div>
 
       <div className="sticky bottom-[60px] border-t bg-card/95 backdrop-blur">
@@ -199,5 +243,14 @@ function VenuePage() {
         </div>
       </div>
     </PhoneShell>
+  );
+}
+
+function DebugLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="mt-1 flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <span className="font-mono font-semibold text-foreground">{value}</span>
+    </div>
   );
 }
