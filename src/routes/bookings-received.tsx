@@ -41,10 +41,11 @@ function BookingsReceivedPage() {
   const activeFilter: Filter = search.filter ?? "all";
   const fetch = useServerFn(listVendorBookings);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["vendor-bookings"],
+    queryKey: ["vendor-bookings", user.id],
     queryFn: () => fetch(),
     staleTime: 0,
     refetchOnMount: "always",
+    enabled: !!user.id,
   });
 
   const now = Date.now();
