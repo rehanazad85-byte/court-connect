@@ -213,6 +213,15 @@ function VenuePage() {
             })}
           </div>
         )}
+        {debug.clickFired && (
+          <div className="mt-4 rounded-2xl border border-dashed bg-muted/40 p-3 text-[11px] text-muted-foreground">
+            <div className="font-bold text-foreground">Booking debug</div>
+            <DebugLine label="Continue click fired" value={debug.clickFired ? "yes" : "no"} />
+            <DebugLine label="Authenticated" value={debug.authenticated === null ? "checking" : debug.authenticated ? "yes" : "no"} />
+            {debug.payload && <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.payload, null, 2)}</pre>}
+            {debug.error && <div className="mt-2 font-semibold text-destructive">Error: {debug.error}</div>}
+          </div>
+        )}
       </div>
 
       <div className="sticky bottom-[60px] border-t bg-card/95 backdrop-blur">
@@ -234,5 +243,14 @@ function VenuePage() {
         </div>
       </div>
     </PhoneShell>
+  );
+}
+
+function DebugLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="mt-1 flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <span className="font-mono font-semibold text-foreground">{value}</span>
+    </div>
   );
 }
