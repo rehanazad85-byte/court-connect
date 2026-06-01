@@ -168,23 +168,21 @@ function VendorDashboard({ userId }: { userId: string }) {
     return <PendingScreen label="Loading vendor dashboard…" />;
   }
 
-  const upcoming = (bookings.data?.bookings ?? []).filter(
-    (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now,
-  );
-  const received = bookings.data?.bookings ?? [];
-  const visibleBookings = received.slice(0, 20);
-  const todayEnd = new Date();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  todayEnd.setHours(23, 59, 59, 999);
-  const today = upcoming.filter((b) => {
+  const allBookings = bookings.data?.bookings ?? [];
+  const confirmed = allBookings.filter((b) => b.status === "confirmed");
+  const visibleBookings = allBookings.slice(0, 20);
+  const todayStartMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+  const todayEndMs = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
+  const today = confirmed.filter((b) => {
     const t = new Date(b.starts_at).getTime();
-    return t >= todayStart.getTime() && t <= todayEnd.getTime();
+    return t >= todayStartMs && t <= todayEndMs;
   });
-  const revenue7d = (bookings.data?.bookings ?? [])
-    .filter(
-      (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now - 7 * 86400000,
-    )
+  const upcoming = confirmed.filter((b) => new Date(b.starts_at).getTime() >= now);
+  const revenue7d = confirmed
+    .filter((b) => {
+      const t = new Date(b.starts_at).getTime();
+      return t >= now - 7 * 86400000 && t <= now;
+    })
     .reduce((s, b) => s + b.total_pence, 0);
 
   const onTogglePublish = async (venueId: string, next: boolean) => {
