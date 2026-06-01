@@ -11,6 +11,34 @@ import { createBooking } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type BookingDebug = {
+  clickFired: boolean;
+  authenticated: boolean | null;
+  createBookingCalled: boolean;
+  payload: Record<string, unknown> | null;
+  error: string | null;
+  result: Record<string, unknown> | null;
+};
+
+const initialDebug: BookingDebug = {
+  clickFired: false,
+  authenticated: null,
+  createBookingCalled: false,
+  payload: null,
+  error: null,
+  result: null,
+};
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Booking failed";
+  }
+}
+
 export const Route = createFileRoute("/summary")({
   head: () => ({ meta: [{ title: "Booking summary — Knox" }] }),
   beforeLoad: async ({ location }) => {
@@ -25,6 +53,7 @@ function SummaryPage() {
   const navigate = useNavigate();
   const submit = useServerFn(createBooking);
   const [submitting, setSubmitting] = useState(false);
+  const [debug, setDebug] = useState<BookingDebug>(initialDebug);
 
   if (!booking.venueId || !booking.dateISO || !booking.time || booking.resourceIds.length === 0) {
     return (
@@ -44,28 +73,68 @@ function SummaryPage() {
 
   const onPay = async () => {
     setSubmitting(true);
+    const startsAtISO = combineISO(booking.dateISO!, booking.time!);
+    const endsAtISO = new Date(new Date(startsAtISO).getTime() + booking.durationMin * 60_000).toISOString();
+    const debugPayload = {
+      venueId: booking.venueId,
+      startsAtISO,
+      endsAtISO,
+      durationMin: booking.durationMin,
+      resourceIds: booking.resourceIds,
+      players: booking.players,
+      resourceLabels: booking.resourceLabels,
+      clientQuote: {
+        perResourcePence: booking.pricePerCourtPence,
+        subtotalPence: subtotal,
+        serviceFeePence: fee,
+        totalPence: total,
+      },
+    };
+    setDebug({ ...initialDebug, clickFired: true, payload: debugPayload });
     try {
       // Re-check auth before submitting — if session lapsed, redirect to login.
       const { data: u } = await supabase.auth.getUser();
+      setDebug((d) => ({ ...d, authenticated: !!u.user, payload: { ...debugPayload, userId: u.user?.id ?? null } }));
       if (!u.user) {
-        toast.error("You need to sign in to confirm a booking.");
+        const msg = "You need to sign in to confirm a booking.";
+        setDebug((d) => ({ ...d, error: msg }));
+        toast.error(msg);
         navigate({ to: "/login", search: { redirect: "/summary" } });
         return;
       }
+      const missing = [
+        !booking.venueId ? "venueId" : null,
+        !startsAtISO ? "startsAt" : null,
+        !endsAtISO ? "endsAt" : null,
+        !booking.durationMin ? "durationMin" : null,
+        booking.resourceIds.length === 0 ? "resourceIds" : null,
+        !booking.players ? "players" : null,
+        booking.pricePerCourtPence == null ? "total/quote data" : null,
+      ].filter(Boolean) as string[];
+      if (missing.length > 0) {
+        const msg = `Missing booking data: ${missing.join(", ")}`;
+        setDebug((d) => ({ ...d, error: msg }));
+        toast.error(msg);
+        setSubmitting(false);
+        return;
+      }
+      setDebug((d) => ({ ...d, createBookingCalled: true }));
       const res = await submit({
         data: {
           venueId: booking.venueId!,
-          startsAtISO: combineISO(booking.dateISO!, booking.time!),
+          startsAtISO,
           durationMin: booking.durationMin,
           resourceIds: booking.resourceIds,
           players: booking.players,
         },
       });
+      setDebug((d) => ({ ...d, result: { id: res.id, reference: res.reference, totalPence: res.totalPence } }));
       bookingStore.reset();
       navigate({ to: "/confirmation", search: { ref: res.reference, total: res.totalPence } });
     } catch (e) {
       console.error("createBooking failed:", e);
-      const msg = e instanceof Error ? e.message : "Booking failed";
+      const msg = errorMessage(e);
+      setDebug((d) => ({ ...d, error: msg }));
       toast.error(msg, { description: "Please try again or pick a different time." });
       setSubmitting(false);
     }
@@ -108,6 +177,18 @@ function SummaryPage() {
         </div>
 
         <p className="mt-4 text-center text-[11px] text-muted-foreground">Payment is stubbed for now — booking is confirmed instantly.</p>
+
+        {debug.clickFired && (
+          <div className="mt-4 rounded-2xl border border-dashed bg-muted/40 p-3 text-[11px] text-muted-foreground">
+            <div className="font-bold text-foreground">Booking debug</div>
+            <DebugLine label="Button click fired" value={debug.clickFired ? "yes" : "no"} />
+            <DebugLine label="Authenticated" value={debug.authenticated === null ? "checking" : debug.authenticated ? "yes" : "no"} />
+            <DebugLine label="createBooking called" value={debug.createBookingCalled ? "yes" : "no"} />
+            {debug.payload && <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.payload, null, 2)}</pre>}
+            {debug.error && <div className="mt-2 font-semibold text-destructive">Error: {debug.error}</div>}
+            {debug.result && <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.result, null, 2)}</pre>}
+          </div>
+        )}
       </div>
 
       <div className="sticky bottom-[60px] border-t bg-card/95 backdrop-blur">
@@ -145,6 +226,15 @@ function Line({ label, value, bold }: { label: string; value: string; bold?: boo
     <div className="flex items-center justify-between">
       <span className={bold ? "font-bold" : "text-muted-foreground"}>{label}</span>
       <span className={bold ? "text-base font-bold text-primary" : "font-semibold"}>{value}</span>
+    </div>
+  );
+}
+
+function DebugLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="mt-1 flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <span className="font-mono font-semibold text-foreground">{value}</span>
     </div>
   );
 }
