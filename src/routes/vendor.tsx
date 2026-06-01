@@ -197,6 +197,8 @@ function VendorDashboard() {
         <p className="mt-1 text-sm text-muted-foreground">Manage venues, courts and bookings.</p>
       </div>
 
+      <VendorBookingsDebug debug={(bookings.data as any)?.debug} error={bookings.error} />
+
       <div className="px-5 pt-5 grid grid-cols-3 gap-2">
         <StatLink to="/bookings-received" filter="today" label="Today" value={String(today.length)} />
         <StatLink to="/bookings-received" filter="upcoming" label="Upcoming" value={String(upcoming.length)} />
@@ -325,6 +327,32 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl bg-card p-4 shadow-soft">
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function VendorBookingsDebug({ debug, error }: { debug: any; error?: unknown }) {
+  const walsall = debug?.walsallPadel ?? [];
+  return (
+    <div className="px-5 pt-4">
+      <div className="rounded-2xl border border-dashed bg-card p-3 text-[11px] text-muted-foreground">
+        <div className="mb-2 text-xs font-bold text-foreground">Vendor bookings debug</div>
+        <div><span className="font-semibold text-foreground">Authenticated user:</span> {debug?.authenticatedUserId ?? "not returned"}</div>
+        <div><span className="font-semibold text-foreground">Roles:</span> {(debug?.roles ?? []).join(", ") || "none"}</div>
+        <div><span className="font-semibold text-foreground">Owned venue ids:</span> {(debug?.venueIds ?? []).join(", ") || "none"}</div>
+        <div><span className="font-semibold text-foreground">Bookings found:</span> {debug?.bookingCount ?? 0}</div>
+        <div><span className="font-semibold text-foreground">Latest refs:</span> {(debug?.latestReferences ?? []).join(" | ") || "none"}</div>
+        <div><span className="font-semibold text-foreground">Query:</span> {debug?.query ?? "not returned"}</div>
+        <div><span className="font-semibold text-foreground">Errors:</span> {error instanceof Error ? error.message : (debug?.errors ?? []).join(" | ") || "none"}</div>
+        <div className="mt-2 font-semibold text-foreground">Walsall Padel ownership</div>
+        {walsall.length === 0 ? (
+          <div>Walsall Padel not visible to this account.</div>
+        ) : walsall.map((v: any) => (
+          <div key={v.id} className="break-words">
+            {v.name}: {v.id} · vendor {v.vendor_id} · {v.ownedByCurrentUser ? "owned by current user" : "not owned by current user"}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
