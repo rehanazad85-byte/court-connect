@@ -21,14 +21,14 @@ import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
 
-const myVenuesQuery = queryOptions({
-  queryKey: ["my-venues"],
+const myVenuesQuery = (userId: string) => queryOptions({
+  queryKey: ["my-venues", userId],
   queryFn: () => listMyVenues(),
   staleTime: 0,
   refetchOnMount: "always",
 });
-const vendorBookingsQuery = queryOptions({
-  queryKey: ["vendor-bookings"],
+const vendorBookingsQuery = (userId: string) => queryOptions({
+  queryKey: ["vendor-bookings", userId],
   queryFn: () => listVendorBookings(),
   staleTime: 0,
   refetchOnMount: "always",
@@ -41,9 +41,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
-function rolesQueryOptions(ready: boolean) {
+function rolesQueryOptions(ready: boolean, userId: string) {
   return {
-    queryKey: ["my-roles"],
+    queryKey: ["my-roles", userId],
     queryFn: () => withTimeout(myRoles(), 5000, { roles: [] }),
     enabled: ready,
     retry: false,
@@ -81,14 +81,14 @@ function VendorAuthGate() {
     return <PendingScreen label={!user && !loading ? "Opening sign in…" : "Checking vendor session…"} />;
   }
 
-  return <VendorPage />;
+  return <VendorPage userId={user.id} />;
 }
 
 
-function VendorPage() {
+function VendorPage({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const claim = useServerFn(claimVendor);
-  const rolesResult = useQuery(rolesQueryOptions(true));
+  const rolesResult = useQuery(rolesQueryOptions(true, userId));
   if (rolesResult.isLoading) {
     return <PendingScreen label="Loading vendor roles…" />;
   }
@@ -138,13 +138,13 @@ function VendorPage() {
     );
   }
 
-  return <VendorDashboard />;
+  return <VendorDashboard userId={userId} />;
 }
 
-function VendorDashboard() {
+function VendorDashboard({ userId }: { userId: string }) {
   const qc = useQueryClient();
-  const venues = useSuspenseQuery(myVenuesQuery);
-  const bookings = useSuspenseQuery(vendorBookingsQuery);
+  const venues = useSuspenseQuery(myVenuesQuery(userId));
+  const bookings = useSuspenseQuery(vendorBookingsQuery(userId));
   const togglePublish = useServerFn(setVenuePublished);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

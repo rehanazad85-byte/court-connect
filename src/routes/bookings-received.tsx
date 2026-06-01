@@ -32,19 +32,20 @@ function BookingsReceivedGate() {
     }
   }, [loading, user, nav]);
   if (loading || !user) return <PendingScreen label="Checking session…" />;
-  return <BookingsReceivedPage />;
+  return <BookingsReceivedPage userId={user.id} />;
 }
 
-function BookingsReceivedPage() {
+function BookingsReceivedPage({ userId }: { userId: string }) {
   const search = Route.useSearch();
   const nav = useNavigate();
   const activeFilter: Filter = search.filter ?? "all";
   const fetch = useServerFn(listVendorBookings);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["vendor-bookings"],
+    queryKey: ["vendor-bookings", userId],
     queryFn: () => fetch(),
     staleTime: 0,
     refetchOnMount: "always",
+    enabled: !!userId,
   });
 
   const now = Date.now();
