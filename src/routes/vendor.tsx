@@ -172,7 +172,7 @@ function VendorDashboard() {
     (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now,
   );
   const received = bookings.data?.bookings ?? [];
-  const visibleBookings = upcoming.length > 0 ? upcoming : received.slice(0, 20);
+  const visibleBookings = received.slice(0, 20);
   const todayEnd = new Date();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
