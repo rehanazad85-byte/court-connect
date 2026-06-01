@@ -89,6 +89,12 @@ export function BookingDebugPanel({ snapshot }: { snapshot: BookingDebugSnapshot
   );
 }
 
+export function BookingRouteErrorPanel({ component, error }: { component: string; error: unknown }) {
+  const snapshot = buildBookingDebugSnapshot({ component, error });
+  logBookingDebug(snapshot);
+  return <BookingDebugPanel snapshot={snapshot} />;
+}
+
 function DebugLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="mt-1 flex items-start justify-between gap-3">
