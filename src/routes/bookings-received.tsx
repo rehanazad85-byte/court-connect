@@ -38,7 +38,7 @@ function BookingsReceivedGate() {
 function BookingsReceivedPage() {
   const search = Route.useSearch();
   const nav = useNavigate();
-  const activeFilter: Filter = search.filter ?? "upcoming";
+  const activeFilter: Filter = search.filter ?? "all";
   const fetch = useServerFn(listVendorBookings);
   const { data, isLoading, error } = useQuery({
     queryKey: ["vendor-bookings"],
@@ -48,6 +48,7 @@ function BookingsReceivedPage() {
   });
 
   const now = Date.now();
+  const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const todayEnd = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
   const all = (data?.bookings ?? []) as any[];
   const venuesById = new Map((data?.venues ?? []).map((v: any) => [v.id, v]));
@@ -56,14 +57,15 @@ function BookingsReceivedPage() {
     const t = new Date(b.starts_at).getTime();
     if (activeFilter === "cancelled") return b.status === "cancelled";
     if (b.status === "cancelled") return false;
-    if (activeFilter === "today") return t >= now - 12 * 3600_000 && t <= todayEnd;
+    if (activeFilter === "today") return t >= todayStart && t <= todayEnd;
     if (activeFilter === "upcoming") return t >= now;
     if (activeFilter === "past") return t < now;
     return true;
   });
 
   const counts = {
-    today: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() >= now - 12 * 3600_000 && new Date(b.starts_at).getTime() <= todayEnd).length,
+    all: all.length,
+    today: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() >= todayStart && new Date(b.starts_at).getTime() <= todayEnd).length,
     upcoming: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() >= now).length,
     past: all.filter((b) => b.status !== "cancelled" && new Date(b.starts_at).getTime() < now).length,
     cancelled: all.filter((b) => b.status === "cancelled").length,
@@ -82,8 +84,11 @@ function BookingsReceivedPage() {
         <p className="mt-1 text-sm text-muted-foreground">Bookings customers made at your venues.</p>
       </div>
 
+      <VendorBookingsDebug debug={(data as any)?.debug} error={error} />
+
       <div className="px-5 pt-4 flex gap-2 overflow-x-auto no-scrollbar">
         {([
+          ["all", `All (${counts.all})`],
           ["today", `Today (${counts.today})`],
           ["upcoming", `Upcoming (${counts.upcoming})`],
           ["past", `Past (${counts.past})`],
@@ -151,5 +156,31 @@ function BookingsReceivedPage() {
         )}
       </div>
     </PhoneShell>
+  );
+}
+
+function VendorBookingsDebug({ debug, error }: { debug: any; error?: unknown }) {
+  const walsall = debug?.walsallPadel ?? [];
+  return (
+    <div className="px-5 pt-4">
+      <div className="rounded-2xl border border-dashed bg-card p-3 text-[11px] text-muted-foreground">
+        <div className="mb-2 text-xs font-bold text-foreground">Vendor bookings debug</div>
+        <div><span className="font-semibold text-foreground">Authenticated user:</span> {debug?.authenticatedUserId ?? "not returned"}</div>
+        <div><span className="font-semibold text-foreground">Roles:</span> {(debug?.roles ?? []).join(", ") || "none"}</div>
+        <div><span className="font-semibold text-foreground">Owned venue ids:</span> {(debug?.venueIds ?? []).join(", ") || "none"}</div>
+        <div><span className="font-semibold text-foreground">Bookings found:</span> {debug?.bookingCount ?? 0}</div>
+        <div><span className="font-semibold text-foreground">Latest refs:</span> {(debug?.latestReferences ?? []).join(" | ") || "none"}</div>
+        <div><span className="font-semibold text-foreground">Query:</span> {debug?.query ?? "not returned"}</div>
+        <div><span className="font-semibold text-foreground">Errors:</span> {error instanceof Error ? error.message : (debug?.errors ?? []).join(" | ") || "none"}</div>
+        <div className="mt-2 font-semibold text-foreground">Walsall Padel ownership</div>
+        {walsall.length === 0 ? (
+          <div>Walsall Padel not visible to this account.</div>
+        ) : walsall.map((v: any) => (
+          <div key={v.id} className="break-words">
+            {v.name}: {v.id} · vendor {v.vendor_id} · {v.ownedByCurrentUser ? "owned by current user" : "not owned by current user"}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
