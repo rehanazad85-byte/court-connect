@@ -12,6 +12,20 @@ import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type ContinueDebug = {
+  clickFired: boolean;
+  authenticated: boolean | null;
+  payload: Record<string, unknown> | null;
+  error: string | null;
+};
+
+const initialContinueDebug: ContinueDebug = {
+  clickFired: false,
+  authenticated: null,
+  payload: null,
+  error: null,
+};
+
 const venueQuery = (venueId: string) =>
   queryOptions({
     queryKey: ["venue", venueId],
@@ -50,6 +64,7 @@ function VenuePage() {
   const [durationMin, setDurationMin] = useState(60);
   const [players] = useState<number>(prefilledPlayers ?? 2);
   const [submitting, setSubmitting] = useState(false);
+  const [debug, setDebug] = useState<ContinueDebug>(initialContinueDebug);
   const backSearch = { city, date: dateISO, players };
 
   const availabilityQuery = useQuery({
