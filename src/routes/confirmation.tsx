@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { Check, X, Calendar, Clock, LayoutGrid, MapPin, Users } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
@@ -12,6 +12,7 @@ const bookingByRef = (reference: string) =>
   queryOptions({
     queryKey: ["booking", "ref", reference],
     queryFn: () => getBookingByReference({ data: { reference } }),
+    retry: 1,
   });
 
 export const Route = createFileRoute("/confirmation")({
@@ -21,10 +22,6 @@ export const Route = createFileRoute("/confirmation")({
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/login", search: { redirect: location.href } });
   },
-  loader: ({ context, location }) => {
-    const ref = (location.search as { ref?: string }).ref;
-    if (ref) return context.queryClient.ensureQueryData(bookingByRef(ref));
-  },
   errorComponent: ({ error }) => (
     <div className="min-h-dvh bg-ink text-ink-foreground">
       <div className="mx-auto max-w-md px-5 py-10 text-center">
@@ -32,6 +29,12 @@ export const Route = createFileRoute("/confirmation")({
         <p className="mt-2 text-sm text-white/70">{error instanceof Error ? error.message : "Unknown error"}</p>
         <Link to="/bookings" className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Go to My Bookings</Link>
       </div>
+    </div>
+  ),
+  notFoundComponent: () => (
+    <div className="min-h-dvh bg-ink p-10 text-center text-ink-foreground">
+      <h1 className="text-xl font-bold">Booking not found</h1>
+      <Link to="/bookings" className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">My Bookings</Link>
     </div>
   ),
   component: ConfirmationPage,
@@ -76,20 +79,34 @@ function ConfirmationPage() {
 }
 
 function BookingDetails({ reference, fallbackTotal }: { reference: string; fallbackTotal?: number }) {
-  const { data } = useSuspenseQuery(bookingByRef(reference));
-  const b = data.booking;
+  const { data, isLoading, error } = useQuery(bookingByRef(reference));
+  if (isLoading) {
+    return <div className="mt-4 text-center text-sm text-muted-foreground">Loading booking…</div>;
+  }
+  if (error) {
+    return (
+      <div className="mt-4 text-center text-xs text-muted-foreground">
+        Couldn't load full details. Reference saved above.
+        {fallbackTotal != null && (
+          <div className="mt-1">Total <span className="font-bold text-primary">{formatPence(fallbackTotal)}</span></div>
+        )}
+      </div>
+    );
+  }
+  const b = data?.booking;
   if (!b) {
     return fallbackTotal != null ? (
       <div className="mt-3 text-center text-sm text-muted-foreground">Total <span className="font-bold text-primary">{formatPence(fallbackTotal)}</span></div>
     ) : null;
   }
   const venue = (b as any).venues as { name?: string; city?: string; address?: string } | null;
+  const resources = data?.resources ?? [];
   return (
     <div className="mt-4 space-y-3 border-t pt-4">
       <Row icon={MapPin} label="Venue" value={venue?.name ?? ""} sub={venue?.address || venue?.city || undefined} />
       <Row icon={Calendar} label="When" value={formatDateTimeUTC(b.starts_at)} />
       <Row icon={Clock} label="Duration" value={`${Math.round((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 60000)} min`} />
-      <Row icon={LayoutGrid} label={data.resources.length === 1 ? "Court" : "Courts"} value={data.resources.map((r) => r.name).join(", ") || "—"} />
+      <Row icon={LayoutGrid} label={resources.length === 1 ? "Court" : "Courts"} value={resources.map((r) => r.name).join(", ") || "—"} />
       <Row icon={Users} label="Players" value={`${b.players} ${b.players === 1 ? "Player" : "Players"}`} />
       <div className="mt-1 flex items-center justify-between border-t pt-3">
         <span className="text-sm font-bold">Total paid</span>
