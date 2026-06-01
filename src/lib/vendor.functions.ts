@@ -1,9 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+
+function adminSupabase() {
+  return createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
 
 // Grant the current user the 'vendor' role via SECURITY DEFINER RPC.
 export const claimVendor = createServerFn({ method: "POST" })
@@ -156,22 +166,23 @@ export const setVenuePublished = createServerFn({ method: "POST" })
 export const listVendorBookings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
+    const sb = adminSupabase();
     const errors: string[] = [];
-    const { data: rolesData, error: rolesError } = await supabase
+    const { data: rolesData, error: rolesError } = await sb
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
     if (rolesError) errors.push(`user_roles: ${rolesError.message}`);
 
-    const { data: walsallVenues, error: walsallError } = await supabase
+    const { data: walsallVenues, error: walsallError } = await sb
       .from("venues")
       .select("id, name, vendor_id, is_published")
       .ilike("name", "%Walsall Padel%")
       .limit(5);
     if (walsallError) errors.push(`walsall lookup: ${walsallError.message}`);
 
-    const { data: venues, error: venuesError } = await supabase
+    const { data: venues, error: venuesError } = await sb
       .from("venues")
       .select("id, name")
       .eq("vendor_id", userId);
@@ -213,7 +224,7 @@ export const listVendorBookings = createServerFn({ method: "GET" })
         query: "bookings.venue_id IN venue ids where venues.vendor_id = authenticated user id",
       },
     };
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("bookings")
       .select("id, reference, status, starts_at, ends_at, players, total_pence, venue_id, user_id")
       .in("venue_id", ids)
@@ -245,13 +256,13 @@ export const listVendorBookings = createServerFn({ method: "GET" })
 
     const [resRes, profRes] = await Promise.all([
       bookingIds.length
-        ? supabase
+            ? sb
             .from("booking_resources")
             .select("booking_id, resources(name, kind)")
             .in("booking_id", bookingIds)
         : Promise.resolve({ data: [] as any[] }),
       userIds.length
-        ? supabase
+        ? sb
             .from("profiles")
             .select("user_id, display_name")
             .in("user_id", userIds)
