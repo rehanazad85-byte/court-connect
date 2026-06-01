@@ -11,7 +11,7 @@ import { bookingStore } from "@/lib/booking-store";
 import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BookingDebugPanel, buildBookingDebugSnapshot, logBookingDebug, type BookingDebugSnapshot } from "@/lib/booking-debug";
+import { BookingDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug, type BookingDebugSnapshot } from "@/lib/booking-debug";
 
 type ContinueDebug = {
   clickFired: boolean;
@@ -56,6 +56,7 @@ export const Route = createFileRoute("/venue/$venueId")({
         <button onClick={() => reset()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Try again</button>
         <a href="/" className="rounded-full border px-5 py-2.5 text-sm font-semibold">Go home</a>
       </div>
+      <BookingRouteErrorPanel component="VenueRoute.errorComponent" error={error} />
     </div>
   ),
   component: VenuePage,
