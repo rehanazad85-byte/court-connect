@@ -157,19 +157,88 @@ export const listVendorBookings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: venues } = await supabase
+    const errors: string[] = [];
+    const { data: rolesData, error: rolesError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (rolesError) errors.push(`user_roles: ${rolesError.message}`);
+
+    const { data: walsallVenues, error: walsallError } = await supabase
+      .from("venues")
+      .select("id, name, vendor_id, is_published")
+      .ilike("name", "%Walsall Padel%")
+      .limit(5);
+    if (walsallError) errors.push(`walsall lookup: ${walsallError.message}`);
+
+    const { data: venues, error: venuesError } = await supabase
       .from("venues")
       .select("id, name")
       .eq("vendor_id", userId);
+    if (venuesError) {
+      errors.push(`venues: ${venuesError.message}`);
+      return {
+        bookings: [],
+        venues: [],
+        debug: {
+          authenticatedUserId: userId,
+          roles: (rolesData ?? []).map((r) => r.role as string),
+          venueIds: [],
+          bookingCount: 0,
+          latestReferences: [],
+          errors,
+          walsallPadel: (walsallVenues ?? []).map((v) => ({
+            ...v,
+            ownedByCurrentUser: v.vendor_id === userId,
+          })),
+          query: "bookings.venue_id IN venue ids where venues.vendor_id = authenticated user id",
+        },
+      };
+    }
     const ids = (venues ?? []).map((v) => v.id);
-    if (ids.length === 0) return { bookings: [], venues: [] };
+    if (ids.length === 0) return {
+      bookings: [],
+      venues: [],
+      debug: {
+        authenticatedUserId: userId,
+        roles: (rolesData ?? []).map((r) => r.role as string),
+        venueIds: [],
+        bookingCount: 0,
+        latestReferences: [],
+        errors,
+        walsallPadel: (walsallVenues ?? []).map((v) => ({
+          ...v,
+          ownedByCurrentUser: v.vendor_id === userId,
+        })),
+        query: "bookings.venue_id IN venue ids where venues.vendor_id = authenticated user id",
+      },
+    };
     const { data, error } = await supabase
       .from("bookings")
       .select("id, reference, status, starts_at, ends_at, players, total_pence, venue_id, user_id")
       .in("venue_id", ids)
       .order("starts_at", { ascending: false })
       .limit(300);
-    if (error) throw new Error(error.message);
+    if (error) {
+      errors.push(`bookings: ${error.message}`);
+      return {
+        bookings: [],
+        venues: venues ?? [],
+        debug: {
+          authenticatedUserId: userId,
+          roles: (rolesData ?? []).map((r) => r.role as string),
+          venueIds: ids,
+          bookingCount: 0,
+          latestReferences: [],
+          errors,
+          walsallPadel: (walsallVenues ?? []).map((v) => ({
+            ...v,
+            ownedByCurrentUser: v.vendor_id === userId,
+          })),
+          query: "bookings.venue_id IN venue ids where venues.vendor_id = authenticated user id",
+        },
+      };
+    }
     const bookings = data ?? [];
     const bookingIds = bookings.map((b) => b.id);
     const userIds = Array.from(new Set(bookings.map((b) => b.user_id)));
@@ -188,6 +257,8 @@ export const listVendorBookings = createServerFn({ method: "GET" })
             .in("user_id", userIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
+    if ("error" in resRes && resRes.error) errors.push(`booking_resources: ${resRes.error.message}`);
+    if ("error" in profRes && profRes.error) errors.push(`profiles: ${profRes.error.message}`);
 
     const resourcesByBooking = new Map<string, { name: string; kind: string }[]>();
     (resRes.data ?? []).forEach((r: any) => {
@@ -203,7 +274,23 @@ export const listVendorBookings = createServerFn({ method: "GET" })
       customer_name: nameByUser.get(b.user_id) ?? "Customer",
       resources: resourcesByBooking.get(b.id) ?? [],
     }));
-    return { bookings: enriched, venues: venues ?? [] };
+    return {
+      bookings: enriched,
+      venues: venues ?? [],
+      debug: {
+        authenticatedUserId: userId,
+        roles: (rolesData ?? []).map((r) => r.role as string),
+        venueIds: ids,
+        bookingCount: enriched.length,
+        latestReferences: enriched.slice(0, 10).map((b) => `${b.reference} (${b.status}, ${b.starts_at})`),
+        errors,
+        walsallPadel: (walsallVenues ?? []).map((v) => ({
+          ...v,
+          ownedByCurrentUser: v.vendor_id === userId,
+        })),
+        query: "bookings.venue_id IN venue ids where venues.vendor_id = authenticated user id",
+      },
+    };
   });
 
 export const createVenue = createServerFn({ method: "POST" })
