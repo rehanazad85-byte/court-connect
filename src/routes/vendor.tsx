@@ -171,9 +171,16 @@ function VendorDashboard() {
   const upcoming = (bookings.data?.bookings ?? []).filter(
     (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now,
   );
+  const received = bookings.data?.bookings ?? [];
+  const visibleBookings = upcoming.length > 0 ? upcoming : received.slice(0, 20);
   const todayEnd = new Date();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   todayEnd.setHours(23, 59, 59, 999);
-  const today = upcoming.filter((b) => new Date(b.starts_at).getTime() <= todayEnd.getTime());
+  const today = upcoming.filter((b) => {
+    const t = new Date(b.starts_at).getTime();
+    return t >= todayStart.getTime() && t <= todayEnd.getTime();
+  });
   const revenue7d = (bookings.data?.bookings ?? [])
     .filter(
       (b) => b.status === "confirmed" && new Date(b.starts_at).getTime() >= now - 7 * 86400000,
@@ -285,14 +292,14 @@ function VendorDashboard() {
       </div>
 
       <div className="px-5 pt-7 pb-8">
-        <h2 className="text-base font-bold">Upcoming bookings</h2>
+        <h2 className="text-base font-bold">Bookings received</h2>
         <div className="mt-3 space-y-2">
-          {upcoming.length === 0 && (
+          {visibleBookings.length === 0 && (
             <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
               Nothing booked yet.
             </div>
           )}
-          {upcoming.slice(0, 20).map((b) => {
+          {visibleBookings.map((b) => {
             const v = (bookings.data?.venues ?? []).find((x) => x.id === b.venue_id);
             return (
               <div
