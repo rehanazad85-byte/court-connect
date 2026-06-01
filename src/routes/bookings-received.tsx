@@ -43,6 +43,8 @@ function BookingsReceivedPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["vendor-bookings"],
     queryFn: () => fetch(),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const now = Date.now();
