@@ -110,13 +110,15 @@ function VenuePage() {
         toast.error(msg);
         return;
       }
+      const selectedResourceId = slot.availableResourceIds[0];
+      const selectedResource = availabilityQuery.data?.resources.find((r) => r.id === selectedResourceId);
       bookingStore.set({
         venueId: venue.id,
         venueName: venue.name,
         venueImage: venue.cover_image,
         dateISO, dateLabel: dayLabel, time, durationMin, players,
-        resourceIds: [], resourceLabels: [],
-        pricePerCourtPence: slots.find((s) => s.time === time)?.pricePence ?? null,
+        resourceIds: [selectedResourceId], resourceLabels: [selectedResource?.name ?? "Court"],
+        pricePerCourtPence: slot.pricePence,
         searchActivity: venue.activity,
         searchCity: city ?? venue.city ?? null,
       });
@@ -127,7 +129,7 @@ function VenuePage() {
         navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
         return;
       }
-      navigate({ to: "/venue/$venueId/courts", params: { venueId: venue.id }, search: { city, date: dateISO, players } });
+      navigate({ to: "/summary" });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Booking failed";
       setDebug((d) => ({ ...d, error: msg }));
