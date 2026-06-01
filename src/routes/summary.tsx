@@ -97,8 +97,11 @@ function SummaryPage() {
     );
   }
 
+  const venueId = booking.venueId!;
+  const dateISO = booking.dateISO!;
+  const selectedTime = booking.time!;
   const hours = booking.durationMin / 60;
-  const endTime = addMinutesToTime(booking.time, booking.durationMin);
+  const endTime = addMinutesToTime(selectedTime, booking.durationMin);
   const perCourt = booking.pricePerCourtPence ?? 0;
   const subtotal = perCourt * booking.resourceIds.length;
   const fee = Math.round(subtotal * 0.02);
@@ -106,10 +109,10 @@ function SummaryPage() {
 
   const onPay = async () => {
     setSubmitting(true);
-    const startsAtISO = combineISO(booking.dateISO!, booking.time!);
+    const startsAtISO = combineISO(dateISO, selectedTime);
     const endsAtISO = new Date(new Date(startsAtISO).getTime() + booking.durationMin * 60_000).toISOString();
     const debugPayload = {
-      venueId: booking.venueId,
+          venueId,
       startsAtISO,
       endsAtISO,
       durationMin: booking.durationMin,
@@ -189,7 +192,7 @@ function SummaryPage() {
         back={{
           to: "/venue/$venueId/courts",
           params: { venueId: booking.venueId },
-          search: { city: booking.searchCity ?? undefined, date: booking.dateISO, players: booking.players },
+          search: { city: booking.searchCity ?? undefined, date: dateISO, players: booking.players },
         }}
       />
 
@@ -205,7 +208,7 @@ function SummaryPage() {
         <h3 className="mt-6 text-base font-bold">Booking Details</h3>
         <div className="mt-3 space-y-3 rounded-2xl bg-card p-4 shadow-soft">
           <Row icon={Calendar} label="Date" value={booking.dateLabel ?? ""} />
-          <Row icon={Clock} label="Time" value={`${booking.time} – ${endTime} (${hours} hour${hours === 1 ? "" : "s"})`} />
+          <Row icon={Clock} label="Time" value={`${selectedTime} – ${endTime} (${hours} hour${hours === 1 ? "" : "s"})`} />
           <Row icon={LayoutGrid} label="Courts" value={booking.resourceLabels.join(", ")} />
           <Row icon={Users} label="Players" value={`${booking.players} Players`} />
         </div>
