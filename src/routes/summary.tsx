@@ -87,15 +87,23 @@ function SummaryPage() {
   }, [missingSummarySnapshot]);
 
   if (!hasSummaryData) {
-    const chooseAgainTarget = booking.venueId
-      ? { to: "/venue/$venueId" as const, params: { venueId: booking.venueId }, search: { city: booking.searchCity ?? undefined, date: booking.dateISO ?? undefined, players: booking.players } }
-      : null;
+    const chooseAgain = () => {
+      if (booking.venueId) {
+        navigate({
+          to: "/venue/$venueId",
+          params: { venueId: booking.venueId },
+          search: { city: booking.searchCity ?? undefined, date: booking.dateISO ?? undefined, players: booking.players },
+        });
+        return;
+      }
+      navigate({ to: "/" });
+    };
     return (
       <PhoneShell>
         <TopBar title="Booking Summary" back="/" />
         <div className="px-5 py-10 text-center text-sm text-muted-foreground">
           No booking in progress. Please choose the venue and time again.
-          <button onClick={() => navigate(chooseAgainTarget ?? { to: "/" })} className="mt-5 h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground">Choose venue again</button>
+          <button onClick={chooseAgain} className="mt-5 h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground">Choose venue again</button>
           <BookingFlowDebugPanel routeName="SummaryPage.missingState" quoteLoaded={false} createBookingCalled={false} />
           {missingSummarySnapshot && <BookingDebugPanel snapshot={missingSummarySnapshot} />}
         </div>
