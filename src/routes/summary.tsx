@@ -8,10 +8,10 @@ import { TopBar } from "@/components/TopBar";
 import { useBooking, bookingStore } from "@/lib/booking-store";
 import { formatPence } from "@/lib/mock-data";
 import { addMinutesToTime, combineISO } from "@/lib/date-utils";
-import { createBooking } from "@/lib/booking.functions";
+import { createBooking, ensureCustomerAccountRecords } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BookingDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug, summaryDataExists, type BookingDebugSnapshot } from "@/lib/booking-debug";
+import { BookingDebugPanel, BookingFlowDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, isBookingDebugEnabled, logBookingDebug, summaryDataExists, type BookingDebugSnapshot } from "@/lib/booking-debug";
 
 type BookingDebug = {
   clickFired: boolean;
@@ -66,6 +66,7 @@ function SummaryPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const submit = useServerFn(createBooking);
+  const ensureAccountRecords = useServerFn(ensureCustomerAccountRecords);
   const [submitting, setSubmitting] = useState(false);
   const [debug, setDebug] = useState<BookingDebug>(initialDebug);
   const hasSummaryData = summaryDataExists(booking);
@@ -86,12 +87,24 @@ function SummaryPage() {
   }, [missingSummarySnapshot]);
 
   if (!hasSummaryData) {
+    const chooseAgain = () => {
+      if (booking.venueId) {
+        navigate({
+          to: "/venue/$venueId",
+          params: { venueId: booking.venueId },
+          search: { city: booking.searchCity ?? undefined, date: booking.dateISO ?? undefined, players: booking.players },
+        });
+        return;
+      }
+      navigate({ to: "/" });
+    };
     return (
       <PhoneShell>
         <TopBar title="Booking Summary" back="/" />
         <div className="px-5 py-10 text-center text-sm text-muted-foreground">
           No booking in progress. Please choose the venue and time again.
-          <button onClick={() => navigate({ to: "/" })} className="mt-5 h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground">Choose venue again</button>
+          <button onClick={chooseAgain} className="mt-5 h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground">Choose venue again</button>
+          <BookingFlowDebugPanel routeName="SummaryPage.missingState" quoteLoaded={false} createBookingCalled={false} />
           {missingSummarySnapshot && <BookingDebugPanel snapshot={missingSummarySnapshot} />}
         </div>
       </PhoneShell>
@@ -101,8 +114,10 @@ function SummaryPage() {
   const venueId = booking.venueId!;
   const dateISO = booking.dateISO!;
   const selectedTime = booking.time!;
-  const hours = booking.durationMin / 60;
-  const endTime = addMinutesToTime(selectedTime, booking.durationMin);
+  const durationMin = Number.isFinite(booking.durationMin) && booking.durationMin > 0 ? booking.durationMin : 60;
+  const players = Number.isFinite(booking.players) && booking.players > 0 ? booking.players : 2;
+  const hours = durationMin / 60;
+  const endTime = addMinutesToTime(selectedTime, durationMin);
   const perCourt = booking.pricePerCourtPence ?? 0;
   const subtotal = perCourt * booking.resourceIds.length;
   const fee = Math.round(subtotal * 0.02);
@@ -111,14 +126,24 @@ function SummaryPage() {
   const onPay = async () => {
     setSubmitting(true);
     const startsAtISO = combineISO(dateISO, selectedTime);
-    const endsAtISO = new Date(new Date(startsAtISO).getTime() + booking.durationMin * 60_000).toISOString();
+    const startMs = new Date(startsAtISO).getTime();
+    if (Number.isNaN(startMs)) {
+      const error = new Error("Invalid booking date or time. Please choose the venue and time again.");
+      const snapshot = buildBookingDebugSnapshot({ component: "SummaryPage.onPay", error, booking, sessionIdPresent: null, createBookingCalled: false });
+      logBookingDebug(snapshot);
+      setDebug((d) => ({ ...d, clickFired: true, error: snapshot }));
+      toast.error(error.message);
+      setSubmitting(false);
+      return;
+    }
+    const endsAtISO = new Date(startMs + durationMin * 60_000).toISOString();
     const debugPayload = {
           venueId,
       startsAtISO,
       endsAtISO,
-      durationMin: booking.durationMin,
+      durationMin,
       resourceIds: booking.resourceIds,
-      players: booking.players,
+      players,
       resourceLabels: booking.resourceLabels,
       clientQuote: {
         perResourcePence: booking.pricePerCourtPence,
@@ -145,9 +170,9 @@ function SummaryPage() {
         !booking.venueId ? "venueId" : null,
         !startsAtISO ? "startsAt" : null,
         !endsAtISO ? "endsAt" : null,
-        !booking.durationMin ? "durationMin" : null,
+        !durationMin ? "durationMin" : null,
         booking.resourceIds.length === 0 ? "resourceIds" : null,
-        !booking.players ? "players" : null,
+        !players ? "players" : null,
         booking.pricePerCourtPence == null ? "total/quote data" : null,
       ].filter(Boolean) as string[];
       if (missing.length > 0) {
@@ -159,16 +184,18 @@ function SummaryPage() {
         setSubmitting(false);
         return;
       }
+      await ensureAccountRecords();
       setDebug((d) => ({ ...d, createBookingCalled: true }));
       const res = await submit({
         data: {
           venueId,
           startsAtISO,
-          durationMin: booking.durationMin,
+          durationMin,
           resourceIds: booking.resourceIds,
-          players: booking.players,
+          players,
         },
       });
+      if (!res.reference) throw new Error("Booking succeeded but no confirmation reference was returned.");
       setDebug((d) => ({ ...d, result: { id: res.id, reference: res.reference, totalPence: res.totalPence } }));
       bookingStore.reset();
       await Promise.all([
@@ -211,7 +238,7 @@ function SummaryPage() {
           <Row icon={Calendar} label="Date" value={booking.dateLabel ?? ""} />
           <Row icon={Clock} label="Time" value={`${selectedTime} – ${endTime} (${hours} hour${hours === 1 ? "" : "s"})`} />
           <Row icon={LayoutGrid} label="Courts" value={booking.resourceLabels.join(", ")} />
-          <Row icon={Users} label="Players" value={`${booking.players} Players`} />
+        <Row icon={Users} label="Players" value={`${players} Players`} />
         </div>
 
         <h3 className="mt-6 text-base font-bold">Price Breakdown</h3>
@@ -224,7 +251,14 @@ function SummaryPage() {
 
         <p className="mt-4 text-center text-[11px] text-muted-foreground">Payment is stubbed for now — booking is confirmed instantly.</p>
 
-        {debug.clickFired && (
+        <BookingFlowDebugPanel
+          routeName="SummaryPage"
+          quoteLoaded={booking.pricePerCourtPence != null}
+          createBookingCalled={debug.createBookingCalled}
+          latestCreateBookingError={debug.error?.message ?? null}
+        />
+
+        {isBookingDebugEnabled() && debug.clickFired && (
           <div className="mt-4 rounded-2xl border border-dashed bg-muted/40 p-3 text-[11px] text-muted-foreground">
             <div className="font-bold text-foreground">Booking debug</div>
             <DebugLine label="Button click fired" value={debug.clickFired ? "yes" : "no"} />

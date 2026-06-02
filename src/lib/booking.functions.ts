@@ -257,6 +257,7 @@ export const createBooking = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const start = new Date(data.startsAtISO);
+    if (Number.isNaN(start.getTime())) throw new Error("Invalid booking start time");
     const end = new Date(start.getTime() + data.durationMin * 60_000);
 
     // Recompute price server-side
@@ -290,7 +291,39 @@ export const createBooking = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
     const row = Array.isArray(rpc) ? rpc[0] : rpc;
+    if (!row?.id || !row?.reference) throw new Error("Booking was created but no confirmation reference was returned");
     return { id: row?.id as string, reference: row?.reference as string, totalPence: total };
+  });
+
+export const ensureCustomerAccountRecords = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = context.userId;
+    const claims = context.claims as { email?: string; user_metadata?: { display_name?: string } };
+    const email = claims.email ?? null;
+    const displayName = claims.user_metadata?.display_name ?? email?.split("@")[0] ?? "Customer";
+    const admin = adminSupabase();
+
+    const [{ data: profile, error: profileReadError }, { data: roles, error: rolesReadError }] = await Promise.all([
+      admin.from("profiles").select("user_id").eq("user_id", userId).maybeSingle(),
+      admin.from("user_roles").select("role").eq("user_id", userId),
+    ]);
+    if (profileReadError) throw new Error(profileReadError.message);
+    if (rolesReadError) throw new Error(rolesReadError.message);
+
+    if (!profile) {
+      const { error } = await admin.from("profiles").insert({ user_id: userId, display_name: displayName });
+      if (error) throw new Error(error.message);
+    }
+    if (!(roles ?? []).some((r) => r.role === "customer")) {
+      const { error } = await admin.from("user_roles").insert({ user_id: userId, role: "customer" });
+      if (error) throw new Error(error.message);
+    }
+
+    return {
+      profileExists: true,
+      roles: Array.from(new Set([...(roles ?? []).map((r) => r.role), "customer"])),
+    };
   });
 
 export const myBookings = createServerFn({ method: "GET" })

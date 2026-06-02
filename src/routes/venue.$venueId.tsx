@@ -11,7 +11,7 @@ import { bookingStore } from "@/lib/booking-store";
 import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BookingDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug, type BookingDebugSnapshot } from "@/lib/booking-debug";
+import { BookingDebugPanel, BookingFlowDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, isBookingDebugEnabled, logBookingDebug, type BookingDebugSnapshot } from "@/lib/booking-debug";
 
 type ContinueDebug = {
   clickFired: boolean;
@@ -234,7 +234,14 @@ function VenuePage() {
             })}
           </div>
         )}
-        {debug.clickFired && (
+        <BookingFlowDebugPanel
+          routeName="VenuePage"
+          venueId={venueId}
+          quoteLoaded={!!time && !!slots.find((s) => s.time === time)?.pricePence}
+          createBookingCalled={false}
+          latestCreateBookingError={debug.error?.message ?? null}
+        />
+        {isBookingDebugEnabled() && debug.clickFired && (
           <div className="mt-4 rounded-2xl border border-dashed bg-muted/40 p-3 text-[11px] text-muted-foreground">
             <div className="font-bold text-foreground">Booking debug</div>
             <DebugLine label="Continue click fired" value={debug.clickFired ? "yes" : "no"} />
