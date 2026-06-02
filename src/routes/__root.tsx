@@ -68,7 +68,7 @@ class GlobalReactErrorBoundary extends Component<{ children: ReactNode }, { erro
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[global-react-error-boundary]", { error, componentStack: info.componentStack, route: currentPath() });
-    this.setState({ error, componentStack: info.componentStack });
+    this.setState({ error, componentStack: info.componentStack ?? null });
   }
 
   render() {
