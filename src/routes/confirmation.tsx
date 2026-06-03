@@ -7,7 +7,6 @@ import { formatPence } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { getBookingByReference } from "@/lib/booking.functions";
-import { BookingFlowDebugPanel } from "@/lib/booking-debug";
 
 const bookingByRef = (reference: string) =>
   queryOptions({
@@ -56,10 +55,6 @@ function ConfirmationPage() {
           </div>
           <h1 className="mt-5 text-2xl font-bold">Booking Confirmed!</h1>
           <p className="mt-2 text-center text-sm text-white/70">Your booking is locked in.<br />See you on court.</p>
-        </div>
-
-        <div className="mx-5">
-          <BookingFlowDebugPanel routeName="ConfirmationPage" quoteLoaded={!!total} createBookingCalled={false} />
         </div>
 
         <div className="mx-5 mt-6 rounded-2xl bg-card p-5 text-card-foreground shadow-pop">

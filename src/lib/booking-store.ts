@@ -4,9 +4,9 @@ export type BookingState = {
   venueId: string | null;
   venueName: string | null;
   venueImage: string | null;
-  dateISO: string | null;           // "2026-05-23"
-  dateLabel: string | null;         // "Sat, 23 May"
-  time: string | null;              // "13:00"
+  dateISO: string | null;
+  dateLabel: string | null;
+  time: string | null;
   durationMin: number;
   players: number;
   resourceIds: string[];
@@ -15,6 +15,8 @@ export type BookingState = {
   searchActivity: string | null;
   searchCity: string | null;
 };
+
+const STORAGE_KEY = "knox_booking_draft";
 
 const initial: BookingState = {
   venueId: null,
@@ -32,17 +34,44 @@ const initial: BookingState = {
   searchCity: null,
 };
 
-let state: BookingState = { ...initial };
+function loadFromStorage(): BookingState {
+  if (typeof window === "undefined") return { ...initial };
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...initial };
+    return { ...initial, ...JSON.parse(raw) };
+  } catch {
+    return { ...initial };
+  }
+}
+
+function saveToStorage(s: BookingState) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+function clearStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
+
+let state: BookingState = loadFromStorage();
 const listeners = new Set<() => void>();
 
 export const bookingStore = {
   get: () => state,
   set: (patch: Partial<BookingState>) => {
     state = { ...state, ...patch };
+    saveToStorage(state);
     listeners.forEach((l) => l());
   },
   reset: () => {
     state = { ...initial };
+    clearStorage();
     listeners.forEach((l) => l());
   },
   subscribe: (fn: () => void) => {
@@ -55,6 +84,6 @@ export function useBooking() {
   return useSyncExternalStore(
     (cb) => bookingStore.subscribe(cb),
     () => bookingStore.get(),
-    () => bookingStore.get(),
+    () => ({ ...initial }),
   );
 }

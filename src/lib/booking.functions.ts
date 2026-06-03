@@ -133,7 +133,7 @@ export const getAvailability = createServerFn({ method: "GET" })
     }).parse(input),
   )
   .handler(async ({ data }) => {
-    const sb = adminSupabase();
+    const sb = publicSupabase();
     const [y, m, d] = data.dateISO.split("-").map(Number);
     const dayStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
     const dayEnd = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
@@ -441,7 +441,7 @@ export const reserveAnyAvailable = createServerFn({ method: "POST" })
     const endMs = end.getTime();
     const pick = resources.find((r) => {
       const busy = (existing ?? []).some(
-        (b) => b.status === "confirmed" && b.resource_id === r.id &&
+        (b) => (b.status === "confirmed" || b.status === "pending") && b.resource_id === r.id &&
           new Date(b.starts_at).getTime() < endMs && new Date(b.ends_at).getTime() > startMs,
       );
       if (busy) return false;
