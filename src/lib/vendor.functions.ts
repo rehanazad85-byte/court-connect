@@ -74,11 +74,12 @@ export const updateVenueSettings = createServerFn({ method: "POST" })
       coverImage: z.string().url().max(500).optional().or(z.literal("")),
       pricePerHourPence: z.number().int().min(100).max(50000),
       openMin: z.number().int().min(0).max(1440),
-      closeMin: z.number().int().min(0).max(1440),
+      closeMin: z.number().int().min(0).max(2880),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    if (data.closeMin <= data.openMin) data.closeMin += 1440;
     if (data.closeMin <= data.openMin) throw new Error("Closing must be after opening");
     const { data: venue, error: ve } = await supabase
       .from("venues")
@@ -242,11 +243,12 @@ export const createVenue = createServerFn({ method: "POST" })
       resourceKind: z.enum(["court", "table", "lane", "sim", "board"]),
       pricePerHourPence: z.number().int().min(100).max(50000),
       openMin: z.number().int().min(0).max(1440),
-      closeMin: z.number().int().min(0).max(1440),
+      closeMin: z.number().int().min(0).max(2880),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    if (data.closeMin <= data.openMin) data.closeMin += 1440;
     const slug = `${slugify(data.name)}-${Math.random().toString(36).slice(2, 6)}`;
 
     const { data: venue, error } = await supabase

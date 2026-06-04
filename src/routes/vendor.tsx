@@ -408,7 +408,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
       const closeH = form.closeHour;
       if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
       if (resCount == null || resCount < 1) throw new Error("Enter number of resources");
-      if (openH == null || closeH == null || closeH <= openH)
+      if (openH == null || closeH == null || openH === closeH)
         throw new Error("Enter valid opening/closing hours");
       await create({
         data: {
@@ -610,7 +610,7 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
       const openH = f.openHour;
       const closeH = f.closeHour;
       if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
-      if (openH == null || closeH == null || closeH <= openH)
+      if (openH == null || closeH == null || openH === closeH)
         throw new Error("Enter valid opening/closing hours");
       await updateFn({
         data: {
