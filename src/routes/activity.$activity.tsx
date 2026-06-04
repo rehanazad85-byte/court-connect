@@ -8,6 +8,7 @@ import { TopBar } from "@/components/TopBar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { activities, ACTIVITY_LABELS, formatPence } from "@/lib/mock-data";
 import { listVenues } from "@/lib/booking.functions";
+import { resourceLabel } from "@/lib/resource-labels";
 
 const venuesByActivityQuery = (activity: string, city?: string) =>
   queryOptions({
@@ -96,7 +97,7 @@ function ActivityPage() {
                   <div className="shrink-0 text-xs text-muted-foreground">{v.city ?? ""}</div>
                 </div>
                 <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" /> {v.type} · {v.resourceCount} {v.resourceCount === 1 ? "court" : "courts"}
+                  <MapPin className="h-3.5 w-3.5" /> {v.type} · {v.resourceCount} {resourceLabel(v.activity, v.resourceCount).toLowerCase()}
                 </div>
                 <div className="mt-2 text-sm font-semibold text-primary">
                   From {formatPence(v.priceFromPence)} <span className="font-medium text-muted-foreground">/ hour</span>

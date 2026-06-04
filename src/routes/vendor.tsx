@@ -17,6 +17,7 @@ import {
   updateVenueSettings,
 } from "@/lib/vendor.functions";
 import { formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
+import { resourceLabel } from "@/lib/resource-labels";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
@@ -256,7 +257,7 @@ function VendorDashboard({ userId }: { userId: string }) {
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     {ACTIVITY_LABELS[v.activity] ?? v.activity} · {v.type} ·{" "}
-                    {(v as any).resourceCount ?? 0} courts
+                    {(v as any).resourceCount ?? 0} {resourceLabel(v.activity, (v as any).resourceCount ?? 0).toLowerCase()}
                   </div>
                 </div>
                 <Link

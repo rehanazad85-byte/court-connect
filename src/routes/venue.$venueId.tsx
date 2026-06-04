@@ -7,6 +7,7 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { TopBar } from "@/components/TopBar";
 import { getVenueDetails, getAvailability } from "@/lib/booking.functions";
 import { ACTIVITY_LABELS } from "@/lib/mock-data";
+import { resourceLabel } from "@/lib/resource-labels";
 import { bookingStore } from "@/lib/booking-store";
 import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,7 +141,7 @@ function VenuePage() {
         // For overnight venues a "01:00" slot on Friday actually starts on Saturday
         // morning — combineISO(dateISO, time) would produce the wrong datetime.
         startsAtISO: slot.startsAtISO,
-        resourceIds: [selectedResourceId], resourceLabels: [selectedResource?.name ?? "Court"],
+        resourceIds: [selectedResourceId], resourceLabels: [selectedResource?.name ?? resourceLabel(venue.activity)],
         pricePerCourtPence: slot.pricePence,
         searchActivity: venue.activity,
         searchCity: city ?? venue.city ?? null,

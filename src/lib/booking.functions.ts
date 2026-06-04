@@ -428,7 +428,7 @@ export const myBookings = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, status, starts_at, ends_at, players, total_pence, service_fee_pence, reference, venue_id, venues(id, name, cover_image, type, city, address)")
+      .select("id, status, starts_at, ends_at, players, total_pence, service_fee_pence, reference, venue_id, venues(id, name, cover_image, type, city, address, activity)")
       .eq("user_id", userId)
       .order("starts_at", { ascending: false })
       .limit(100);
@@ -473,7 +473,7 @@ export const getBookingByReference = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data: booking, error } = await supabase
       .from("bookings")
-      .select("id, reference, status, starts_at, ends_at, players, total_pence, service_fee_pence, venue_id, venues(name, cover_image, city, address)")
+      .select("id, reference, status, starts_at, ends_at, players, total_pence, service_fee_pence, venue_id, venues(name, cover_image, city, address, activity)")
       .eq("reference", data.reference)
       .eq("user_id", userId)
       .maybeSingle();

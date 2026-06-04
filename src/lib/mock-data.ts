@@ -12,9 +12,12 @@ export const activities = [
 
 export const ACTIVITY_LABELS: Record<string, string> = {
   padel: "Padel Tennis",
+  tennis: "Tennis",
+  pickleball: "Pickleball",
   snooker: "Snooker",
   pool: "Pool",
   darts: "Darts",
+  football: "Football",
   "golf-sim": "Golf Simulator",
 };
 

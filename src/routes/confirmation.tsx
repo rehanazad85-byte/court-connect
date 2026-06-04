@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Check, X, Calendar, Clock, LayoutGrid, MapPin, Users } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { formatPence } from "@/lib/mock-data";
+import { resourceLabel } from "@/lib/resource-labels";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { getBookingByReference } from "@/lib/booking.functions";
@@ -54,7 +55,7 @@ function ConfirmationPage() {
             <Check className="h-9 w-9 text-primary-foreground" strokeWidth={3} />
           </div>
           <h1 className="mt-5 text-2xl font-bold">Booking Confirmed!</h1>
-          <p className="mt-2 text-center text-sm text-white/70">Your booking is locked in.<br />See you on court.</p>
+          <p className="mt-2 text-center text-sm text-white/70">Your booking is locked in.<br />See you there!</p>
         </div>
 
         <div className="mx-5 mt-6 rounded-2xl bg-card p-5 text-card-foreground shadow-pop">
@@ -106,7 +107,7 @@ function BookingDetails({ reference, fallbackTotal }: { reference: string; fallb
       <Row icon={MapPin} label="Venue" value={venue?.name ?? ""} sub={venue?.address || venue?.city || undefined} />
       <Row icon={Calendar} label="When" value={formatDateTimeUTC(b.starts_at)} />
       <Row icon={Clock} label="Duration" value={`${Math.round((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 60000)} min`} />
-      <Row icon={LayoutGrid} label={resources.length === 1 ? "Court" : "Courts"} value={resources.map((r) => r.name).join(", ") || "—"} />
+      <Row icon={LayoutGrid} label={resourceLabel((b as any)?.venues?.activity, resources.length)} value={resources.map((r) => r.name).join(", ") || "—"} />
       <Row icon={Users} label="Players" value={`${b.players} ${b.players === 1 ? "Player" : "Players"}`} />
       <div className="mt-1 flex items-center justify-between border-t pt-3">
         <span className="text-sm font-bold">Total paid</span>

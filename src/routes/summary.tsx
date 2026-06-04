@@ -7,6 +7,7 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { TopBar } from "@/components/TopBar";
 import { useBooking, bookingStore } from "@/lib/booking-store";
 import { formatPence } from "@/lib/mock-data";
+import { resourceLabel } from "@/lib/resource-labels";
 import { addMinutesToTime, combineISO } from "@/lib/date-utils";
 import { createBooking, ensureCustomerAccountRecords } from "@/lib/booking.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -161,7 +162,7 @@ function SummaryPage() {
           {booking.venueImage && <img src={booking.venueImage} alt={booking.venueName ?? ""} width={80} height={80} loading="lazy" className="h-16 w-16 shrink-0 rounded-xl object-cover" />}
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold truncate">{booking.venueName}</div>
-            <div className="text-xs text-muted-foreground">{booking.resourceIds.length} {booking.resourceIds.length === 1 ? "court" : "courts"}</div>
+            <div className="text-xs text-muted-foreground">{booking.resourceIds.length} {resourceLabel(booking.searchActivity, booking.resourceIds.length).toLowerCase()}</div>
           </div>
         </div>
 
@@ -169,13 +170,13 @@ function SummaryPage() {
         <div className="mt-3 space-y-3 rounded-2xl bg-card p-4 shadow-soft">
           <Row icon={Calendar} label="Date" value={booking.dateLabel ?? ""} />
           <Row icon={Clock} label="Time" value={`${selectedTime} – ${endTime} (${hours} hour${hours === 1 ? "" : "s"})`} />
-          <Row icon={LayoutGrid} label="Courts" value={booking.resourceLabels.join(", ")} />
+          <Row icon={LayoutGrid} label={resourceLabel(booking.searchActivity, booking.resourceIds.length)} value={booking.resourceLabels.join(", ")} />
           <Row icon={Users} label="Players" value={`${players} Players`} />
         </div>
 
         <h3 className="mt-6 text-base font-bold">Price Breakdown</h3>
         <div className="mt-3 space-y-2.5 rounded-2xl bg-card p-4 shadow-soft text-sm">
-          <Line label={`${booking.resourceIds.length} court${booking.resourceIds.length === 1 ? "" : "s"} × ${hours}h`} value={formatPence(subtotal)} />
+          <Line label={`${booking.resourceIds.length} ${resourceLabel(booking.searchActivity, booking.resourceIds.length).toLowerCase()} × ${hours}h`} value={formatPence(subtotal)} />
           <Line label="Service fee (2%)" value={formatPence(fee)} />
           <div className="h-px bg-border" />
           <Line label="Total" value={formatPence(total)} bold />
