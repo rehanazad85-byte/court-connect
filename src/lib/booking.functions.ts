@@ -134,6 +134,14 @@ function pricingForNormalized(
   });
 }
 
+type PricingLookupRow = {
+  day_of_week: number;
+  start_min: number;
+  end_min: number;
+  price_per_hour_pence: number;
+  min_duration_min?: number;
+};
+
 /**
  * Find a pricing rule from a real UTC booking start.
  * Handles both:
@@ -142,11 +150,11 @@ function pricingForNormalized(
  *     belongs to the PREVIOUS day (prevDow) with end_min > startMin (post-midnight close).
  */
 function findPricingRule(
-  pricing: Omit<PricingRow, "slot_step_min" | "min_duration_min">[],
+  pricing: PricingLookupRow[],
   dow: number,
   startMin: number,
   durationMin: number,
-): Omit<PricingRow, "slot_step_min" | "min_duration_min"> | undefined {
+): PricingLookupRow | undefined {
   // Direct same-day match (handles both normal and overnight rules within that day)
   const direct = pricing.find((p) => {
     if (p.day_of_week !== dow) return false;
@@ -485,7 +493,7 @@ export const reserveAnyAvailable = createServerFn({ method: "POST" })
     if (pe) throw new Error(pe.message);
     const rule = findPricingRule(pricing ?? [], dow, startMin, data.durationMin);
     if (!rule) return { ok: false as const, reason: "No pricing for selected time" };
-    if (data.durationMin < (rule as any).min_duration_min) return { ok: false as const, reason: "Slot too short" };
+    if (rule.min_duration_min != null && data.durationMin < rule.min_duration_min) return { ok: false as const, reason: "Slot too short" };
 
     // Candidate resources + conflicts
     const [{ data: resources }, { data: existing }, { data: blackouts }] = await Promise.all([
