@@ -89,7 +89,10 @@ function SummaryPage() {
 
   const onPay = async () => {
     setSubmitting(true);
-    const startsAtISO = combineISO(dateISO, selectedTime);
+    // Prefer the server-authoritative startsAtISO stored in the booking store.
+    // For overnight venues the slot "01:00" on Friday actually falls on Saturday
+    // morning — combineISO(dateISO, time) would produce the wrong UTC datetime.
+    const startsAtISO = booking.startsAtISO ?? combineISO(dateISO, selectedTime);
     const startMs = new Date(startsAtISO).getTime();
     if (Number.isNaN(startMs)) {
       const error = new Error("Invalid booking date or time. Please choose the venue and time again.");

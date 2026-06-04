@@ -7,6 +7,9 @@ export type BookingState = {
   dateISO: string | null;
   dateLabel: string | null;
   time: string | null;
+  /** Exact UTC ISO datetime for the slot start — authoritative for overnight venues.
+   *  Always set by the venue page from the server-returned slot.startsAtISO. */
+  startsAtISO: string | null;
   durationMin: number;
   players: number;
   resourceIds: string[];
@@ -25,6 +28,7 @@ const initial: BookingState = {
   dateISO: null,
   dateLabel: null,
   time: null,
+  startsAtISO: null,
   durationMin: 60,
   players: 2,
   resourceIds: [],

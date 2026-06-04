@@ -37,7 +37,6 @@ export const listVenues = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
-    // Attach resource counts + price-from for each venue (small N is fine for MVP)
     const ids = (rows ?? []).map((r) => r.id);
     if (ids.length === 0) return { venues: [] };
 
@@ -99,22 +98,75 @@ export const getVenueDetails = createServerFn({ method: "GET" })
     };
   });
 
-// ---------- Availability ----------
+// ---------- Availability helpers ----------
 
+/** Minutes of day from a UTC Date (0–1439). */
 function minsOfDay(d: Date) {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
-function pricingFor(
-  pricing: { day_of_week: number; start_min: number; end_min: number; price_per_hour_pence: number; slot_step_min: number; min_duration_min: number }[],
+type PricingRow = {
+  day_of_week: number;
+  start_min: number;
+  end_min: number;
+  price_per_hour_pence: number;
+  slot_step_min: number;
+  min_duration_min: number;
+};
+
+/**
+ * Find a pricing rule for a slot that may use a normalized startMin (>= 1440 for
+ * overnight slots within getAvailability's loop).
+ *
+ * end_min of overnight rules is stored as raw minutes-past-midnight of the next day
+ * (e.g. 120 for 02:00). We normalize it to end_min + 1440 when end_min < start_min.
+ */
+function pricingForNormalized(
+  pricing: PricingRow[],
   dow: number,
   startMin: number,
   durationMin: number,
-) {
-  return pricing.find(
-    (p) => p.day_of_week === dow && startMin >= p.start_min && startMin + durationMin <= p.end_min,
-  );
+): PricingRow | undefined {
+  return pricing.find((p) => {
+    if (p.day_of_week !== dow) return false;
+    const normEnd = p.end_min < p.start_min ? p.end_min + 1440 : p.end_min;
+    return startMin >= p.start_min && startMin + durationMin <= normEnd;
+  });
 }
+
+/**
+ * Find a pricing rule from a real UTC booking start.
+ * Handles both:
+ *   - Normal slots: startMin is within the same day as dow.
+ *   - Overnight slots: startMin is in the early hours of dow, but the pricing rule
+ *     belongs to the PREVIOUS day (prevDow) with end_min > startMin (post-midnight close).
+ */
+function findPricingRule(
+  pricing: Omit<PricingRow, "slot_step_min" | "min_duration_min">[],
+  dow: number,
+  startMin: number,
+  durationMin: number,
+): Omit<PricingRow, "slot_step_min" | "min_duration_min"> | undefined {
+  // Direct same-day match (handles both normal and overnight rules within that day)
+  const direct = pricing.find((p) => {
+    if (p.day_of_week !== dow) return false;
+    const normEnd = p.end_min < p.start_min ? p.end_min + 1440 : p.end_min;
+    return startMin >= p.start_min && startMin + durationMin <= normEnd;
+  });
+  if (direct) return direct;
+
+  // Overnight match: the booking's real start (e.g. 01:00 on Saturday) belongs to the
+  // previous evening's session (e.g. Friday 18:00–02:00).
+  const prevDow = (dow + 6) % 7;
+  return pricing.find((p) => {
+    if (p.day_of_week !== prevDow) return false;
+    if (p.end_min >= p.start_min) return false; // not an overnight rule
+    // startMin must fall before the rule's post-midnight close
+    return startMin >= 0 && startMin + durationMin <= p.end_min;
+  });
+}
+
+// ---------- Availability ----------
 
 export const getAvailability = createServerFn({ method: "GET" })
   .inputValidator((input: { venueId: string; dateISO: string; durationMin: number }) =>
@@ -128,8 +180,15 @@ export const getAvailability = createServerFn({ method: "GET" })
     const sb = publicSupabase();
     const [y, m, d] = data.dateISO.split("-").map(Number);
     const dayStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-    const dayEnd = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
+    // Always query a 2-day window so overnight bookings/blackouts are captured.
+    const queryEnd = new Date(Date.UTC(y, m - 1, d + 2, 0, 0, 0));
     const dow = dayStart.getUTCDay();
+
+    // Determine if the requested date is today (UTC) for past-slot filtering.
+    const nowMs = Date.now();
+    const nowUtc = new Date(nowMs);
+    const todayISO = `${nowUtc.getUTCFullYear()}-${String(nowUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(nowUtc.getUTCDate()).padStart(2, "0")}`;
+    const isToday = data.dateISO === todayISO;
 
     const [{ data: venue }, { data: resources }, { data: hours }, { data: pricing }, { data: blackouts }] =
       await Promise.all([
@@ -137,60 +196,86 @@ export const getAvailability = createServerFn({ method: "GET" })
         sb.from("resources").select("id, name").eq("venue_id", data.venueId).eq("is_active", true).order("sort_order"),
         sb.from("opening_hours").select("day_of_week, open_min, close_min").eq("venue_id", data.venueId).eq("day_of_week", dow),
         sb.from("pricing_rules").select("day_of_week, start_min, end_min, price_per_hour_pence, slot_step_min, min_duration_min").eq("venue_id", data.venueId).eq("day_of_week", dow),
-        sb.from("blackouts").select("resource_id, starts_at, ends_at").eq("venue_id", data.venueId).lt("starts_at", dayEnd.toISOString()).gt("ends_at", dayStart.toISOString()),
+        // Extended window covers overnight sessions that end on day+1
+        sb.from("blackouts").select("resource_id, starts_at, ends_at").eq("venue_id", data.venueId).lt("starts_at", queryEnd.toISOString()).gt("ends_at", dayStart.toISOString()),
       ]);
 
     const open = hours?.[0];
     if (!venue || !open || !resources || resources.length === 0) {
       return { slots: [], resources: resources ?? [], reason: !venue ? "venue_unavailable" : !open ? "closed" : "no_resources" };
     }
+
     const resourceIds = resources.map((r) => r.id);
     const { data: bookings } = await sb
       .from("booking_resources")
       .select("resource_id, starts_at, ends_at, status")
       .in("resource_id", resourceIds)
       .in("status", ["confirmed", "pending"])
-      .lt("starts_at", dayEnd.toISOString())
+      // Extended window covers overnight bookings
+      .lt("starts_at", queryEnd.toISOString())
       .gt("ends_at", dayStart.toISOString());
+
+    // Overnight support: if close_min < open_min (e.g. open=1080, close=120)
+    // the venue closes after midnight. Normalize close_min by adding 1440.
+    const isOvernight = open.close_min < open.open_min;
+    const closeMinNormalized = isOvernight ? open.close_min + 1440 : open.close_min;
 
     const validSteps = (pricing ?? []).map((p) => p.slot_step_min).filter((n) => Number.isFinite(n) && n > 0);
     const step = validSteps.length > 0 ? Math.min(...validSteps) : 30;
-    const slots: { time: string; startMin: number; pricePence: number; availableResourceIds: string[] }[] = [];
-    const nowMs = Date.now();
 
-    for (let startMin = open.open_min; startMin + data.durationMin <= open.close_min; startMin += step) {
-      const rule = pricingFor(pricing ?? [], dow, startMin, data.durationMin);
+    const slots: {
+      time: string;
+      startMin: number;
+      startsAtISO: string;
+      pricePence: number;
+      availableResourceIds: string[];
+    }[] = [];
+
+    for (let startMin = open.open_min; startMin + data.durationMin <= closeMinNormalized; startMin += step) {
+      // Pricing lookup using normalized startMin (handles overnight slots >= 1440)
+      const rule = pricingForNormalized(pricing ?? [], dow, startMin, data.durationMin);
       if (!rule) continue;
       if (data.durationMin < rule.min_duration_min) continue;
 
-      const slotStart = new Date(Date.UTC(y, m - 1, d, 0, startMin, 0)).getTime();
-      if (slotStart <= nowMs) continue;
-      const slotEnd = slotStart + data.durationMin * 60_000;
+      // Compute the actual UTC ms for this slot start.
+      // startMin may be >= 1440 for post-midnight overnight slots.
+      const slotDayOffset = Math.floor(startMin / 1440);
+      const slotTimeMin = startMin % 1440;
+      const slotStartMs = new Date(Date.UTC(y, m - 1, d + slotDayOffset, 0, slotTimeMin, 0)).getTime();
+
+      // Only hide past slots when the requested date is today (UTC).
+      // For future dates every slot is in the future so no filtering needed.
+      if (isToday && slotStartMs <= nowMs) continue;
+
+      const slotEndMs = slotStartMs + data.durationMin * 60_000;
 
       const available = resources.filter((r) => {
         const conflictBooking = (bookings ?? []).some(
           (b) =>
             (b.status === "confirmed" || b.status === "pending") &&
             b.resource_id === r.id &&
-            new Date(b.starts_at).getTime() < slotEnd &&
-            new Date(b.ends_at).getTime() > slotStart,
+            new Date(b.starts_at).getTime() < slotEndMs &&
+            new Date(b.ends_at).getTime() > slotStartMs,
         );
         if (conflictBooking) return false;
         const conflictBlackout = (blackouts ?? []).some(
           (bo) =>
             (bo.resource_id === null || bo.resource_id === r.id) &&
-            new Date(bo.starts_at).getTime() < slotEnd &&
-            new Date(bo.ends_at).getTime() > slotStart,
+            new Date(bo.starts_at).getTime() < slotEndMs &&
+            new Date(bo.ends_at).getTime() > slotStartMs,
         );
         return !conflictBlackout;
       });
 
-      const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
-      const mm = String(startMin % 60).padStart(2, "0");
+      const hh = String(Math.floor(slotTimeMin / 60)).padStart(2, "0");
+      const mm = String(slotTimeMin % 60).padStart(2, "0");
       const pricePence = Math.round((rule.price_per_hour_pence * data.durationMin) / 60);
       slots.push({
         time: `${hh}:${mm}`,
         startMin,
+        // Carry the exact UTC datetime so the client never has to re-derive it from
+        // dateISO + time (which would be wrong for post-midnight overnight slots).
+        startsAtISO: new Date(slotStartMs).toISOString(),
         pricePence,
         availableResourceIds: available.map((r) => r.id),
       });
@@ -221,9 +306,7 @@ export const quoteBooking = createServerFn({ method: "POST" })
     const start = new Date(data.startsAtISO);
     const dow = start.getUTCDay();
     const startMin = minsOfDay(start);
-    const rule = (pricing ?? []).find(
-      (p) => p.day_of_week === dow && startMin >= p.start_min && startMin < p.end_min,
-    );
+    const rule = findPricingRule(pricing ?? [], dow, startMin, data.durationMin);
     if (!rule) throw new Error("No pricing for selected time");
 
     const perCourtPence = Math.round((rule.price_per_hour_pence * data.durationMin) / 60);
@@ -250,6 +333,10 @@ export const createBooking = createServerFn({ method: "POST" })
     const { supabase } = context;
     const start = new Date(data.startsAtISO);
     if (Number.isNaN(start.getTime())) throw new Error("Invalid booking start time");
+
+    // Server-side guard: reject bookings in the past even if UI is manipulated.
+    if (start.getTime() <= Date.now()) throw new Error("Cannot confirm a booking in the past");
+
     const end = new Date(start.getTime() + data.durationMin * 60_000);
 
     // Recompute price server-side
@@ -261,9 +348,8 @@ export const createBooking = createServerFn({ method: "POST" })
 
     const dow = start.getUTCDay();
     const startMin = minsOfDay(start);
-    const rule = (pricing ?? []).find(
-      (p) => p.day_of_week === dow && startMin >= p.start_min && startMin < p.end_min,
-    );
+    // findPricingRule handles both normal and overnight (post-midnight) slots.
+    const rule = findPricingRule(pricing ?? [], dow, startMin, data.durationMin);
     if (!rule) throw new Error("No pricing for selected time");
     const subtotal = Math.round((rule.price_per_hour_pence * data.durationMin) / 60) * data.resourceIds.length;
     const fee = Math.round(subtotal * SERVICE_FEE_RATE);
@@ -279,7 +365,6 @@ export const createBooking = createServerFn({ method: "POST" })
       _service_fee_pence: fee,
     });
     if (error) {
-      // Surface friendly capacity message
       throw new Error(error.message);
     }
     const row = Array.isArray(rpc) ? rpc[0] : rpc;
@@ -295,9 +380,6 @@ export const ensureCustomerAccountRecords = createServerFn({ method: "POST" })
     const email = typedClaims.email ?? null;
     const displayName = typedClaims.user_metadata?.display_name ?? email?.split("@")[0] ?? "Customer";
 
-    // The handle_new_user trigger already creates the profile and customer role on signup.
-    // This upsert is a belt-and-suspenders safety net for any user created before the
-    // trigger was in place. The user's own RLS policy allows inserting their own profile row.
     const { error } = await supabase
       .from("profiles")
       .upsert({ user_id: userId, display_name: displayName }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -395,17 +477,15 @@ export const reserveAnyAvailable = createServerFn({ method: "POST" })
     const dow = start.getUTCDay();
     const startMin = minsOfDay(start);
 
-    // Pricing
+    // Pricing — findPricingRule handles overnight sessions
     const { data: pricing, error: pe } = await supabase
       .from("pricing_rules")
       .select("day_of_week, start_min, end_min, price_per_hour_pence, min_duration_min")
       .eq("venue_id", data.venueId);
     if (pe) throw new Error(pe.message);
-    const rule = (pricing ?? []).find(
-      (p) => p.day_of_week === dow && startMin >= p.start_min && startMin < p.end_min,
-    );
+    const rule = findPricingRule(pricing ?? [], dow, startMin, data.durationMin);
     if (!rule) return { ok: false as const, reason: "No pricing for selected time" };
-    if (data.durationMin < rule.min_duration_min) return { ok: false as const, reason: "Slot too short" };
+    if (data.durationMin < (rule as any).min_duration_min) return { ok: false as const, reason: "Slot too short" };
 
     // Candidate resources + conflicts
     const [{ data: resources }, { data: existing }, { data: blackouts }] = await Promise.all([

@@ -1,0 +1,65 @@
+Fix the booking availability time logic.
+
+Current issues:
+
+1. If the current time is 10:53, the app may still show 10:00 or 10:30 slots. Past slots must never be shown or bookable.
+2. Venue opening/closing times need to support closing after midnight, e.g. open 18:00 and close 02:00.
+3. Availability must remain correct across midnight and not break when close time is technically earlier than open time.
+
+Required behaviour:
+
+A. Past slot filtering
+
+* For the current date only, hide any slot whose start datetime is earlier than the actual current datetime.
+* Example:
+    * Current time = 10:53
+    * Hide 10:00 and 10:30
+    * Show 11:00 only if available.
+* Also prevent backend booking creation for any slot in the past, even if the UI is manipulated.
+
+B. Future dates
+
+* Do not apply current-time filtering to future dates.
+* Show all slots that match venue opening hours and availability.
+
+C. Overnight opening hours
+Support venues that close after midnight.
+Examples:
+
+* open 18:00, close 02:00 should create slots from 18:00 today through 02:00 tomorrow.
+* open 20:00, close 01:00 should create slots from 20:00 today through 01:00 tomorrow.
+* open 09:00, close 17:00 should continue working normally.
+
+D. Slot ownership/date logic
+
+* Overnight slots after midnight should still be part of the previous evening’s trading session where appropriate.
+* Ensure availability checks compare full datetimes, not just time strings.
+
+E. Conflict checks
+
+* Keep existing confirmed and pending booking conflict checks.
+* Do not show unavailable slots.
+* Do not allow double-booking.
+
+F. Testing
+Test:
+
+1. Today at current time — no past slots appear.
+2. Future date — normal slots appear.
+3. Venue open 12:00–24:00.
+4. Venue open 18:00–02:00.
+5. Venue open 20:00–01:00.
+6. Booking across midnight works if within opening hours.
+7. Booking in the past is rejected server-side.
+
+Do not redesign the UI.
+Do not change booking confirmation flow.
+Do not change vendor/customer role logic.
+Only fix availability/time-slot logic.
+
+After changes:
+
+* Run the app.
+* List modified files.
+* Commit and push to GitHub with message:
+    “Fix past-slot filtering and overnight opening hours”

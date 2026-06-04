@@ -68,6 +68,9 @@ function VenuePage() {
     queryKey: ["availability", venueId, dateISO, durationMin],
     queryFn: () => getAvailability({ data: { venueId, dateISO, durationMin } }),
     enabled: !!venue,
+    staleTime: 0,
+    // Refetch every 60 s when viewing today so past slots disappear automatically.
+    refetchInterval: dateISO === days[0]?.iso ? 60_000 : false,
   });
 
   if (!venue) {
@@ -89,7 +92,8 @@ function VenuePage() {
     const slot = slots.find((s) => s.time === time);
     const payload = {
       venueId: venue.id,
-      startsAt: `${dateISO}T${time}`,
+      // Use the server-authoritative startsAtISO when available (required for overnight slots)
+      startsAt: slot?.startsAtISO ?? `${dateISO}T${time}`,
       durationMin,
       availableResourceIds: slot?.availableResourceIds ?? [],
       players,
@@ -110,6 +114,10 @@ function VenuePage() {
         venueName: venue.name,
         venueImage: venue.cover_image,
         dateISO, dateLabel: dayLabel, time, durationMin, players,
+        // startsAtISO from the server is the authoritative UTC datetime for this slot.
+        // For overnight venues a "01:00" slot on Friday actually starts on Saturday
+        // morning — combineISO(dateISO, time) would produce the wrong datetime.
+        startsAtISO: slot.startsAtISO,
         resourceIds: [selectedResourceId], resourceLabels: [selectedResource?.name ?? "Court"],
         pricePerCourtPence: slot.pricePence,
         searchActivity: venue.activity,
