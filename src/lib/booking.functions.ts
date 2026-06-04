@@ -14,14 +14,6 @@ function publicSupabase() {
   );
 }
 
-function adminSupabase() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-}
-
 const SERVICE_FEE_RATE = 0.02;
 
 // ---------- Public reads ----------
@@ -133,7 +125,7 @@ export const getAvailability = createServerFn({ method: "GET" })
     }).parse(input),
   )
   .handler(async ({ data }) => {
-    const sb = adminSupabase();
+    const sb = publicSupabase();
     const [y, m, d] = data.dateISO.split("-").map(Number);
     const dayStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
     const dayEnd = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
@@ -298,32 +290,20 @@ export const createBooking = createServerFn({ method: "POST" })
 export const ensureCustomerAccountRecords = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const userId = context.userId;
-    const claims = context.claims as { email?: string; user_metadata?: { display_name?: string } };
-    const email = claims.email ?? null;
-    const displayName = claims.user_metadata?.display_name ?? email?.split("@")[0] ?? "Customer";
-    const admin = adminSupabase();
+    const { supabase, userId, claims } = context;
+    const typedClaims = claims as { email?: string; user_metadata?: { display_name?: string } };
+    const email = typedClaims.email ?? null;
+    const displayName = typedClaims.user_metadata?.display_name ?? email?.split("@")[0] ?? "Customer";
 
-    const [{ data: profile, error: profileReadError }, { data: roles, error: rolesReadError }] = await Promise.all([
-      admin.from("profiles").select("user_id").eq("user_id", userId).maybeSingle(),
-      admin.from("user_roles").select("role").eq("user_id", userId),
-    ]);
-    if (profileReadError) throw new Error(profileReadError.message);
-    if (rolesReadError) throw new Error(rolesReadError.message);
+    // The handle_new_user trigger already creates the profile and customer role on signup.
+    // This upsert is a belt-and-suspenders safety net for any user created before the
+    // trigger was in place. The user's own RLS policy allows inserting their own profile row.
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ user_id: userId, display_name: displayName }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
 
-    if (!profile) {
-      const { error } = await admin.from("profiles").insert({ user_id: userId, display_name: displayName });
-      if (error) throw new Error(error.message);
-    }
-    if (!(roles ?? []).some((r) => r.role === "customer")) {
-      const { error } = await admin.from("user_roles").insert({ user_id: userId, role: "customer" });
-      if (error) throw new Error(error.message);
-    }
-
-    return {
-      profileExists: true,
-      roles: Array.from(new Set([...(roles ?? []).map((r) => r.role), "customer"])),
-    };
+    return { ok: true };
   });
 
 export const myBookings = createServerFn({ method: "GET" })
@@ -441,7 +421,7 @@ export const reserveAnyAvailable = createServerFn({ method: "POST" })
     const endMs = end.getTime();
     const pick = resources.find((r) => {
       const busy = (existing ?? []).some(
-        (b) => b.status === "confirmed" && b.resource_id === r.id &&
+        (b) => (b.status === "confirmed" || b.status === "pending") && b.resource_id === r.id &&
           new Date(b.starts_at).getTime() < endMs && new Date(b.ends_at).getTime() > startMs,
       );
       if (busy) return false;

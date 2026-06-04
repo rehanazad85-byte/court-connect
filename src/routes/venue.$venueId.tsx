@@ -11,21 +11,7 @@ import { bookingStore } from "@/lib/booking-store";
 import { nextDays } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BookingDebugPanel, BookingFlowDebugPanel, BookingRouteErrorPanel, buildBookingDebugSnapshot, isBookingDebugEnabled, logBookingDebug, type BookingDebugSnapshot } from "@/lib/booking-debug";
-
-type ContinueDebug = {
-  clickFired: boolean;
-  authenticated: boolean | null;
-  payload: Record<string, unknown> | null;
-  error: BookingDebugSnapshot | null;
-};
-
-const initialContinueDebug: ContinueDebug = {
-  clickFired: false,
-  authenticated: null,
-  payload: null,
-  error: null,
-};
+import { BookingRouteErrorPanel, buildBookingDebugSnapshot, logBookingDebug } from "@/lib/booking-debug";
 
 const venueQuery = (venueId: string) =>
   queryOptions({
@@ -76,7 +62,6 @@ function VenuePage() {
   const [durationMin, setDurationMin] = useState(60);
   const [players] = useState<number>(prefilledPlayers ?? 2);
   const [submitting, setSubmitting] = useState(false);
-  const [debug, setDebug] = useState<ContinueDebug>(initialContinueDebug);
   const backSearch = { city, date: dateISO, players };
 
   const availabilityQuery = useQuery({
@@ -84,7 +69,6 @@ function VenuePage() {
     queryFn: () => getAvailability({ data: { venueId, dateISO, durationMin } }),
     enabled: !!venue,
   });
-
 
   if (!venue) {
     return (
@@ -111,16 +95,11 @@ function VenuePage() {
       players,
       pricePerResourcePence: slot?.pricePence ?? null,
     };
-    setDebug({ ...initialContinueDebug, clickFired: true, payload });
     try {
-      // Require auth before reserving; bounce to login otherwise.
       const { data: u } = await supabase.auth.getUser();
-      setDebug((d) => ({ ...d, authenticated: !!u.user, payload: { ...payload, userId: u.user?.id ?? null } }));
       if (!slot || slot.availableResourceIds.length === 0) {
         const error = new Error("No resources are available for that time. Please choose another slot.");
-        const snapshot = buildBookingDebugSnapshot({ component: "VenuePage.goNext", error, sessionIdPresent: !!u.user, createBookingCalled: false, payload });
-        logBookingDebug(snapshot);
-        setDebug((d) => ({ ...d, error: snapshot }));
+        logBookingDebug(buildBookingDebugSnapshot({ component: "VenuePage.goNext", error, sessionIdPresent: !!u.user, createBookingCalled: false, payload }));
         toast.error(error.message);
         return;
       }
@@ -137,10 +116,7 @@ function VenuePage() {
         searchCity: city ?? venue.city ?? null,
       });
       if (!u.user) {
-        const error = new Error("Not authenticated — redirecting to login.");
-        const snapshot = buildBookingDebugSnapshot({ component: "VenuePage.goNext", error, sessionIdPresent: false, createBookingCalled: false, payload });
-        logBookingDebug(snapshot);
-        setDebug((d) => ({ ...d, error: snapshot }));
+        logBookingDebug(buildBookingDebugSnapshot({ component: "VenuePage.goNext", error: new Error("Not authenticated — redirecting to login."), sessionIdPresent: false, createBookingCalled: false, payload }));
         const qs = new URLSearchParams({ date: dateISO, players: String(players) });
         if (city) qs.set("city", city);
         navigate({ to: "/login", search: { redirect: `/venue/${venue.id}?${qs.toString()}` } });
@@ -148,11 +124,8 @@ function VenuePage() {
       }
       navigate({ to: "/summary" });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Booking failed";
-      const snapshot = buildBookingDebugSnapshot({ component: "VenuePage.goNext", error: e, sessionIdPresent: null, createBookingCalled: false, payload });
-      logBookingDebug(snapshot);
-      setDebug((d) => ({ ...d, error: snapshot }));
-      toast.error(msg);
+      logBookingDebug(buildBookingDebugSnapshot({ component: "VenuePage.goNext", error: e, sessionIdPresent: null, createBookingCalled: false, payload }));
+      toast.error(e instanceof Error ? e.message : "Booking failed");
     } finally {
       setSubmitting(false);
     }
@@ -215,7 +188,6 @@ function VenuePage() {
             <p className="text-sm font-semibold">No slots available for this date/duration.</p>
             <p className="mt-1 text-xs text-muted-foreground">Try another date or duration for this venue.</p>
           </div>
-
         ) : (
           <div className="mt-3 grid grid-cols-4 gap-2">
             {slots.map((s) => {
@@ -232,22 +204,6 @@ function VenuePage() {
                 </button>
               );
             })}
-          </div>
-        )}
-        <BookingFlowDebugPanel
-          routeName="VenuePage"
-          venueId={venueId}
-          quoteLoaded={!!time && !!slots.find((s) => s.time === time)?.pricePence}
-          createBookingCalled={false}
-          latestCreateBookingError={debug.error?.message ?? null}
-        />
-        {isBookingDebugEnabled() && debug.clickFired && (
-          <div className="mt-4 rounded-2xl border border-dashed bg-muted/40 p-3 text-[11px] text-muted-foreground">
-            <div className="font-bold text-foreground">Booking debug</div>
-            <DebugLine label="Continue click fired" value={debug.clickFired ? "yes" : "no"} />
-            <DebugLine label="Authenticated" value={debug.authenticated === null ? "checking" : debug.authenticated ? "yes" : "no"} />
-            {debug.payload && <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-background p-2">{JSON.stringify(debug.payload, null, 2)}</pre>}
-            {debug.error && <BookingDebugPanel snapshot={debug.error} />}
           </div>
         )}
       </div>
@@ -271,14 +227,5 @@ function VenuePage() {
         </div>
       </div>
     </PhoneShell>
-  );
-}
-
-function DebugLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mt-1 flex items-center justify-between gap-3">
-      <span>{label}</span>
-      <span className="font-mono font-semibold text-foreground">{value}</span>
-    </div>
   );
 }
