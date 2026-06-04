@@ -80,7 +80,10 @@ export const updateVenueSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     // Allow closeMin < openMin (overnight venue, e.g. open 18:00 close 02:00).
-    // Only reject identical times — that would mean the venue never closes.
+    // Normalise so close_min is always > open_min by adding 1440 (one day in minutes).
+    if (data.closeMin <= data.openMin) {
+      data.closeMin += 1440;
+    }
     if (data.closeMin === data.openMin) throw new Error("Opening and closing times cannot be the same");
     const { data: venue, error: ve } = await supabase
       .from("venues")
@@ -249,6 +252,10 @@ export const createVenue = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Normalise overnight closing times (e.g. open 12:00 = 720, close 03:00 = 180 → 1620).
+    if (data.closeMin <= data.openMin) {
+      data.closeMin += 1440;
+    }
     const slug = `${slugify(data.name)}-${Math.random().toString(36).slice(2, 6)}`;
 
     const { data: venue, error } = await supabase
