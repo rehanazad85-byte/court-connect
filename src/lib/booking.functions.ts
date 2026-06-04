@@ -148,6 +148,11 @@ type PricingLookupRow = {
  *   - Normal slots: startMin is within the same day as dow.
  *   - Overnight slots: startMin is in the early hours of dow, but the pricing rule
  *     belongs to the PREVIOUS day (prevDow) with end_min > startMin (post-midnight close).
+ *
+ * Overnight rules may be stored in two forms:
+ *   A) Raw:        start_min=1080, end_min=120   (end_min < start_min)
+ *   B) Normalised: start_min=1080, end_min=1620  (end_min = raw_end + 1440, end_min > 1440)
+ * Both are handled in the overnight fallback below.
  */
 function findPricingRule(
   pricing: PricingLookupRow[],
@@ -163,14 +168,23 @@ function findPricingRule(
   });
   if (direct) return direct;
 
-  // Overnight match: the booking's real start (e.g. 01:00 on Saturday) belongs to the
-  // previous evening's session (e.g. Friday 18:00–02:00).
+  // Overnight match: the booking's real UTC start (e.g. 00:30 on Friday, startMin=30)
+  // belongs to the previous evening's session (e.g. Thursday 18:00–02:00).
   const prevDow = (dow + 6) % 7;
   return pricing.find((p) => {
     if (p.day_of_week !== prevDow) return false;
-    if (p.end_min >= p.start_min) return false; // not an overnight rule
-    // startMin must fall before the rule's post-midnight close
-    return startMin >= 0 && startMin + durationMin <= p.end_min;
+    // Form A: raw storage — end_min < start_min (e.g. start=1080, end=120)
+    if (p.end_min < p.start_min) {
+      return startMin + durationMin <= p.end_min;
+    }
+    // Form B: normalised storage — end_min > 1440 (e.g. start=1080, end=1620)
+    // The real UTC startMin (e.g. 30) must be shifted +1440 to compare against
+    // the normalised range (e.g. 1470 falls within 1080–1620).
+    if (p.end_min > 1440) {
+      const normStartMin = startMin + 1440;
+      return normStartMin >= p.start_min && normStartMin + durationMin <= p.end_min;
+    }
+    return false;
   });
 }
 
@@ -356,8 +370,20 @@ export const createBooking = createServerFn({ method: "POST" })
 
     const dow = start.getUTCDay();
     const startMin = minsOfDay(start);
+    const endMin = startMin + data.durationMin;
     // findPricingRule handles both normal and overnight (post-midnight) slots.
     const rule = findPricingRule(pricing ?? [], dow, startMin, data.durationMin);
+    // [TEMP LOG] overnight pricing diagnostic
+    console.log("[createBooking] slot:", {
+      startsAtISO: data.startsAtISO,
+      dow,
+      startMin,
+      endMin,
+      normStartMin: endMin > 1440 || startMin < 60 ? startMin + 1440 : startMin,
+      durationMin: data.durationMin,
+      pricingRules: (pricing ?? []).map((p) => ({ dow: p.day_of_week, start: p.start_min, end: p.end_min })),
+      ruleFound: rule ? { dow: rule.day_of_week, start: rule.start_min, end: rule.end_min } : null,
+    });
     if (!rule) throw new Error("No pricing for selected time");
     const subtotal = Math.round((rule.price_per_hour_pence * data.durationMin) / 60) * data.resourceIds.length;
     const fee = Math.round(subtotal * SERVICE_FEE_RATE);
