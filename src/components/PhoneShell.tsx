@@ -11,9 +11,9 @@ export function PhoneShell({
   variant?: "light" | "dark";
 }) {
   return (
-    <div className={variant === "dark" ? "min-h-dvh bg-ink" : "min-h-dvh bg-surface-muted"}>
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-background shadow-pop">
-        <div className="flex-1">{children}</div>
+    <div className={variant === "dark" ? "min-h-dvh bg-ink overflow-x-hidden" : "min-h-dvh bg-surface-muted overflow-x-hidden"}>
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-background shadow-pop overflow-x-hidden">
+        <div className="flex-1 min-w-0">{children}</div>
         {!hideNav && <BottomNav />}
       </div>
     </div>

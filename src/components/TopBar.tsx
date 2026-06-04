@@ -19,14 +19,14 @@ export function TopBar({
   const backProps = typeof back === "string" ? { to: back } : back;
   return (
     <div className={`flex items-center justify-between px-4 pt-5 pb-3 ${text}`}>
-      <Link {...backProps} className="flex h-9 w-9 items-center justify-center -ml-2">
+      <Link {...backProps} className="flex h-11 w-11 items-center justify-center -ml-2 shrink-0">
         <ChevronLeft className="h-6 w-6" />
       </Link>
-      <div className="text-center">
-        <div className="text-[15px] font-semibold leading-tight">{title}</div>
-        {subtitle && <div className={`text-xs ${sub} font-medium`}>{subtitle}</div>}
+      <div className="flex-1 min-w-0 text-center px-1">
+        <div className="text-[15px] font-semibold leading-tight truncate">{title}</div>
+        {subtitle && <div className={`text-xs ${sub} font-medium truncate`}>{subtitle}</div>}
       </div>
-      <div className="flex h-9 w-9 items-center justify-center -mr-2">
+      <div className="flex h-11 w-11 items-center justify-center -mr-2 shrink-0">
         {right === "filters" && <SlidersHorizontal className="h-5 w-5" />}
         {right === "heart" && <Heart className="h-5 w-5" />}
       </div>

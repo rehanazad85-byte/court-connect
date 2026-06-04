@@ -155,9 +155,9 @@ function SummaryPage() {
 
       <div className="px-5 pb-40">
         <div className="flex items-center gap-3 rounded-2xl bg-card p-3 shadow-soft">
-          {booking.venueImage && <img src={booking.venueImage} alt={booking.venueName ?? ""} width={80} height={80} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />}
-          <div>
-            <div className="text-sm font-bold">{booking.venueName}</div>
+          {booking.venueImage && <img src={booking.venueImage} alt={booking.venueName ?? ""} width={80} height={80} loading="lazy" className="h-16 w-16 shrink-0 rounded-xl object-cover" />}
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold truncate">{booking.venueName}</div>
             <div className="text-xs text-muted-foreground">{booking.resourceIds.length} {booking.resourceIds.length === 1 ? "court" : "courts"}</div>
           </div>
         </div>

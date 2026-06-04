@@ -204,7 +204,7 @@ function VendorDashboard({ userId }: { userId: string }) {
 
       
 
-      <div className="px-5 pt-5 grid grid-cols-3 gap-2">
+      <div className="px-5 pt-5 grid grid-cols-3 gap-2 min-w-0">
         <StatLink to="/bookings-received" filter="today" label="Today" value={String(today.length)} />
         <StatLink to="/bookings-received" filter="upcoming" label="Upcoming" value={String(upcoming.length)} />
         <StatLink to="/bookings-received" filter="upcoming" label="7-day rev" value={formatPence(revenue7d)} />
@@ -220,7 +220,7 @@ function VendorDashboard({ userId }: { userId: string }) {
         </Link>
       </div>
 
-      <div className="px-5 pt-6">
+      <div className="px-5 pt-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold">My venues</h2>
           <button
@@ -352,10 +352,10 @@ function StatLink({
     <Link
       to={to}
       search={{ filter }}
-      className="rounded-2xl bg-card p-4 shadow-soft text-left hover:bg-accent/30 transition-colors"
+      className="rounded-2xl bg-card p-3 shadow-soft text-left hover:bg-accent/30 transition-colors min-w-0"
     >
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-bold">{value}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
+      <div className="mt-1 text-lg font-bold truncate">{value}</div>
     </Link>
   );
 }
@@ -524,8 +524,8 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
           </select>
         </Field>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr">
+      <div className="grid grid-cols-3 gap-1.5">
+        <Field label="£/hr">
           <NumberField
             className={cls}
             allowDecimal
@@ -535,7 +535,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
             onChange={(v) => setForm({ ...form, pricePerHourPound: v })}
           />
         </Field>
-        <Field label="Opens (hr)">
+        <Field label="Opens">
           <NumberField
             className={cls}
             min={0}
@@ -544,7 +544,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
             onChange={(v) => setForm({ ...form, openHour: v })}
           />
         </Field>
-        <Field label="Closes (hr)">
+        <Field label="Closes">
           <NumberField
             className={cls}
             min={1}
@@ -671,8 +671,8 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
           onChange={(e) => setForm({ ...f, description: e.target.value })}
         />
       </Field>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="£ / hr">
+      <div className="grid grid-cols-3 gap-1.5">
+        <Field label="£/hr">
           <NumberField
             className={cls}
             allowDecimal
@@ -682,7 +682,7 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
             onChange={(v) => setForm({ ...f, pricePerHourPound: v })}
           />
         </Field>
-        <Field label="Opens (hr)">
+        <Field label="Opens">
           <NumberField
             className={cls}
             min={0}
@@ -691,7 +691,7 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
             onChange={(v) => setForm({ ...f, openHour: v })}
           />
         </Field>
-        <Field label="Closes (hr)">
+        <Field label="Closes">
           <NumberField
             className={cls}
             min={1}

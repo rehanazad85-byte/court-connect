@@ -112,7 +112,7 @@ function ActivityPage() {
 
 function Chip({ children, active, onClick }: { children: React.ReactNode; active?: boolean; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+    <button onClick={onClick} className={`min-h-[44px] rounded-full px-4 py-2 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
       {children}
     </button>
   );

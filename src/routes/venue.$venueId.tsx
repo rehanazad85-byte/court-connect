@@ -169,7 +169,7 @@ function VenuePage() {
             <button
               key={m}
               onClick={() => { setDurationMin(m); setTime(null); }}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition ${durationMin === m ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}
+              className={`min-h-[44px] rounded-full px-4 py-2 text-xs font-semibold transition ${durationMin === m ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}
             >
               {m === 60 ? "1 hour" : m === 90 ? "1.5 hours" : "2 hours"}
             </button>

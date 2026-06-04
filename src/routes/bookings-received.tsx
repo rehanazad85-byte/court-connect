@@ -87,7 +87,7 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
 
       
 
-      <div className="px-5 pt-4 flex gap-2 overflow-x-auto no-scrollbar">
+      <div className="px-5 pt-4 flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
           ["all", `All (${counts.all})`],
           ["today", `Today (${counts.today})`],

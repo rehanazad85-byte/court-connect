@@ -46,7 +46,7 @@ function ConfirmationPage() {
     <div className="min-h-dvh bg-ink">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-ink text-ink-foreground shadow-pop">
         <div className="flex items-center justify-between px-5 pt-5">
-          <Link to="/" className="-ml-1 flex h-9 w-9 items-center justify-center"><X className="h-6 w-6" /></Link>
+          <Link to="/" className="-ml-1 flex h-11 w-11 items-center justify-center"><X className="h-6 w-6" /></Link>
         </div>
 
         <div className="flex flex-col items-center px-6 pt-6">
