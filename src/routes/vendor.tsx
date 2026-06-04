@@ -21,6 +21,7 @@ import { resourceLabel } from "@/lib/resource-labels";
 import { formatDateTimeUTC } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { NumberField } from "@/components/form/NumberField";
+import { VenueImageUpload } from "@/components/VenueImageUpload";
 
 const myVenuesQuery = (userId: string) => queryOptions({
   queryKey: ["my-venues", userId],
@@ -393,6 +394,7 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
 function CreateVenueForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const create = useServerFn(createVenue);
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -493,12 +495,11 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setForm({ ...form, city: e.target.value })}
         />
       </Field>
-      <Field label="Cover image URL">
-        <input
-          className={cls}
-          placeholder="https://..."
+      <Field label="Cover image">
+        <VenueImageUpload
           value={form.coverImage}
-          onChange={(e) => setForm({ ...form, coverImage: e.target.value })}
+          onChange={(url) => setForm({ ...form, coverImage: url })}
+          userId={user?.id ?? ""}
         />
       </Field>
       <Field label="Description">
@@ -581,6 +582,7 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
 
 function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => void }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const getFn = useServerFn(getVenueSettings);
   const updateFn = useServerFn(updateVenueSettings);
   const settingsQuery = useQuery({
@@ -673,12 +675,11 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
           onChange={(e) => setForm({ ...f, city: e.target.value })}
         />
       </Field>
-      <Field label="Cover image URL">
-        <input
-          className={cls}
-          placeholder="https://..."
+      <Field label="Cover image">
+        <VenueImageUpload
           value={f.coverImage}
-          onChange={(e) => setForm({ ...f, coverImage: e.target.value })}
+          onChange={(url) => setForm({ ...f, coverImage: url })}
+          userId={user?.id ?? ""}
         />
       </Field>
       <Field label="Description">
