@@ -380,6 +380,15 @@ function Field({
   );
 }
 
+// 30-minute time options covering 00:00–23:30 (values in minutes-of-day).
+// close_min < open_min in the DB means the venue closes after midnight (overnight).
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const mins = i * 30;
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
+  return { value: mins, label: `${hh}:${mm}` };
+});
+
 function CreateVenueForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const create = useServerFn(createVenue);
@@ -394,8 +403,8 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     resourceCount: 4 as number | null,
     resourceKind: "court" as "court" | "table" | "lane" | "sim" | "board",
     pricePerHourPound: 30 as number | null,
-    openHour: 7 as number | null,
-    closeHour: 22 as number | null,
+    openMin: 420,   // 07:00
+    closeMin: 1320, // 22:00
   });
 
   const sub = async (e: React.FormEvent) => {
@@ -404,12 +413,10 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
     try {
       const priceNum = form.pricePerHourPound;
       const resCount = form.resourceCount;
-      const openH = form.openHour;
-      const closeH = form.closeHour;
       if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
       if (resCount == null || resCount < 1) throw new Error("Enter number of resources");
-      if (openH == null || closeH == null || closeH <= openH)
-        throw new Error("Enter valid opening/closing hours");
+      if (form.openMin === form.closeMin)
+        throw new Error("Opening and closing times cannot be the same");
       await create({
         data: {
           name: form.name,
@@ -421,8 +428,8 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
           resourceCount: resCount,
           resourceKind: form.resourceKind,
           pricePerHourPence: Math.round(priceNum * 100),
-          openMin: openH * 60,
-          closeMin: closeH * 60,
+          openMin: form.openMin,
+          closeMin: form.closeMin,
         },
       });
       toast.success("Venue created");
@@ -536,22 +543,29 @@ function CreateVenueForm({ onDone }: { onDone: () => void }) {
           />
         </Field>
         <Field label="Opens">
-          <NumberField
+          <select
             className={cls}
-            min={0}
-            max={23}
-            value={form.openHour}
-            onChange={(v) => setForm({ ...form, openHour: v })}
-          />
+            value={form.openMin}
+            onChange={(e) => setForm({ ...form, openMin: Number(e.target.value) })}
+          >
+            {TIME_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </Field>
-        <Field label="Closes">
-          <NumberField
+        <Field
+          label="Closes"
+          help="For overnight sessions enter the next-day time, e.g. 02:00."
+        >
+          <select
             className={cls}
-            min={1}
-            max={24}
-            value={form.closeHour}
-            onChange={(v) => setForm({ ...form, closeHour: v })}
-          />
+            value={form.closeMin}
+            onChange={(e) => setForm({ ...form, closeMin: Number(e.target.value) })}
+          >
+            {TIME_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </Field>
       </div>
       <button
@@ -578,8 +592,8 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
     description: string;
     coverImage: string;
     pricePerHourPound: number | null;
-    openHour: number | null;
-    closeHour: number | null;
+    openMin: number | null;
+    closeMin: number | null;
   };
   const [form, setForm] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -589,14 +603,16 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
   if (settingsQuery.error)
     return <div className="mt-3 text-xs text-destructive">Failed to load</div>;
   const s = settingsQuery.data!;
+  // Load openMin/closeMin directly — no integer-hour rounding.
+  // closeMin < openMin means the venue closes after midnight (overnight session).
   const f: FormState = form ?? {
     name: s.venue.name,
     city: s.venue.city ?? "",
     description: s.venue.description ?? "",
     coverImage: s.venue.cover_image ?? "",
     pricePerHourPound: s.pricePerHourPence / 100,
-    openHour: Math.floor(s.openMin / 60),
-    closeHour: Math.floor(s.closeMin / 60),
+    openMin: s.openMin,
+    closeMin: s.closeMin,
   };
 
   const cls =
@@ -607,11 +623,11 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
     setBusy(true);
     try {
       const priceNum = f.pricePerHourPound;
-      const openH = f.openHour;
-      const closeH = f.closeHour;
       if (priceNum == null || priceNum <= 0) throw new Error("Enter a valid price");
-      if (openH == null || closeH == null || closeH <= openH)
-        throw new Error("Enter valid opening/closing hours");
+      if (f.openMin == null || f.closeMin == null)
+        throw new Error("Enter opening and closing times");
+      if (f.openMin === f.closeMin)
+        throw new Error("Opening and closing times cannot be the same");
       await updateFn({
         data: {
           venueId,
@@ -620,8 +636,8 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
           description: f.description || undefined,
           coverImage: f.coverImage || undefined,
           pricePerHourPence: Math.round(priceNum * 100),
-          openMin: openH * 60,
-          closeMin: closeH * 60,
+          openMin: f.openMin,
+          closeMin: f.closeMin,
         },
       });
       toast.success("Venue updated");
@@ -683,22 +699,29 @@ function EditVenueForm({ venueId, onDone }: { venueId: string; onDone: () => voi
           />
         </Field>
         <Field label="Opens">
-          <NumberField
+          <select
             className={cls}
-            min={0}
-            max={23}
-            value={f.openHour}
-            onChange={(v) => setForm({ ...f, openHour: v })}
-          />
+            value={f.openMin ?? 0}
+            onChange={(e) => setForm({ ...f, openMin: Number(e.target.value) })}
+          >
+            {TIME_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </Field>
-        <Field label="Closes">
-          <NumberField
+        <Field
+          label="Closes"
+          help="For overnight enter the next-day time, e.g. 02:00."
+        >
+          <select
             className={cls}
-            min={1}
-            max={24}
-            value={f.closeHour}
-            onChange={(v) => setForm({ ...f, closeHour: v })}
-          />
+            value={f.closeMin ?? 0}
+            onChange={(e) => setForm({ ...f, closeMin: Number(e.target.value) })}
+          >
+            {TIME_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </Field>
       </div>
       <button

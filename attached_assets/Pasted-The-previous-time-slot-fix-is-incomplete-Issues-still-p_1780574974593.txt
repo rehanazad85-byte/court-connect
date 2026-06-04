@@ -1,0 +1,83 @@
+The previous time-slot fix is incomplete.
+
+Issues still present:
+
+1. Vendor edit form still does not allow closing times after midnight.
+
+Example:
+
+- Open: 18:00
+
+- Close: 02:00
+
+This should be valid and saved as an overnight trading session.
+
+2. Current-day past slots are still showing.
+
+Example:
+
+- If current local time is 13:07, the app must not show 13:00 or any earlier slot.
+
+- It should only show the next future slot, e.g. 13:30 or 14:00, depending on slot interval and availability.
+
+Please fix this properly across UI and backend.
+
+Required:
+
+A. Vendor opening/closing UI
+
+- Allow close time after midnight.
+
+- Do not force close time to be greater than open time.
+
+- Treat close time less than open time as “closes next day”.
+
+- Add helper text: “If closing after midnight, enter the next-day closing time, e.g. 02:00.”
+
+B. Time input support
+
+- Do not use 24 as a closing value if the system expects 00:00.
+
+- Support 00:00, 00:30, 01:00, 01:30, 02:00 etc as next-day closing times.
+
+- Save the data in a way availability can understand overnight hours.
+
+C. Current-day slot filtering
+
+- Compare using the user/venue local datetime, not UTC-only date strings.
+
+- For today only, hide every slot whose full start datetime is <= now.
+
+- If now is 13:07, hide 13:00.
+
+- If now is 13:29, hide 13:00 and keep 13:30 only if it has not passed.
+
+- If now is 13:31, hide 13:30 too.
+
+D. Backend protection
+
+- createBooking must reject any booking where start datetime <= current datetime.
+
+- Do not rely only on UI filtering.
+
+E. Testing
+
+Create test cases for:
+
+- open 09:00 close 17:00
+
+- open 12:00 close 00:00
+
+- open 18:00 close 02:00
+
+- current time 13:07 should not show 13:00
+
+- current time 13:31 should not show 13:30
+
+- overnight 01:00 slot should belong to previous evening session where relevant.
+
+Do not change booking confirmation, vendor roles, customer roles, or payment logic.
+
+Only fix opening/closing input, overnight availability, and past-slot filtering.
+
+After fixing, list modified files and explain exactly how the time comparison now works.

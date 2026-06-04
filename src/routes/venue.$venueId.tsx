@@ -82,7 +82,29 @@ function VenuePage() {
     );
   }
 
-  const slots = availabilityQuery.data?.slots ?? [];
+  const rawSlots = availabilityQuery.data?.slots ?? [];
+
+  // Client-side past-slot guard — safety net against stale cache and timezone skew.
+  // The slot's `time` field ("HH:MM") represents the displayed venue-local time.
+  // We compare it against the user's current local clock so that if the user sees
+  // "13:00" it disappears the moment local time passes 13:00, regardless of UTC offset.
+  const isDateToday = (() => {
+    const u = new Date();
+    const utcISO = `${u.getUTCFullYear()}-${String(u.getUTCMonth() + 1).padStart(2, "0")}-${String(u.getUTCDate()).padStart(2, "0")}`;
+    return dateISO === utcISO;
+  })();
+  const slots = isDateToday
+    ? rawSlots.filter((s) => {
+        // Post-midnight overnight slots (startMin >= 1440) are on the next calendar
+        // day — they are always in the future relative to today's viewing session.
+        if (s.startMin >= 1440) return true;
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const [slotH, slotM] = s.time.split(":").map(Number);
+        return slotH * 60 + slotM > nowMins;
+      })
+    : rawSlots;
+
   const dayLabel = days.find((d) => d.iso === dateISO)?.label ?? "";
   const canContinue = time !== null && !submitting;
 
