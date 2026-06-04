@@ -79,7 +79,9 @@ export const updateVenueSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    if (data.closeMin <= data.openMin) throw new Error("Closing must be after opening");
+    // Allow closeMin < openMin (overnight venue, e.g. open 18:00 close 02:00).
+    // Only reject identical times — that would mean the venue never closes.
+    if (data.closeMin === data.openMin) throw new Error("Opening and closing times cannot be the same");
     const { data: venue, error: ve } = await supabase
       .from("venues")
       .update({
