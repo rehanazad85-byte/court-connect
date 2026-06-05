@@ -1,0 +1,2 @@
+ALTER TABLE public.pricing_rules DROP CONSTRAINT IF EXISTS pricing_rules_end_min_check;
+ALTER TABLE public.pricing_rules ADD CONSTRAINT pricing_rules_end_min_check CHECK (end_min >= 0 AND end_min <= 2880);
