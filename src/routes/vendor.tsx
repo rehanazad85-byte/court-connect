@@ -309,15 +309,15 @@ function VendorDashboard({ userId }: { userId: string }) {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
                   <Calendar className="h-4 w-4" />
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold">{v?.name}</div>
-                  <div className="text-xs text-muted-foreground">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold truncate">{v?.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">
                     {formatDateTimeUTC(b.starts_at)} · {b.players} players
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0 max-w-[90px]">
                   <div className="text-xs font-bold text-primary">{formatPence(b.total_pence)}</div>
-                  <div className="text-[10px] font-mono text-muted-foreground">{b.reference}</div>
+                  <div className="text-[10px] font-mono text-muted-foreground truncate">{b.reference}</div>
                 </div>
               </div>
             );

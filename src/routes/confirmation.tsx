@@ -61,7 +61,7 @@ function ConfirmationPage() {
         <div className="mx-5 mt-6 rounded-2xl bg-card p-5 text-card-foreground shadow-pop">
           <div className="text-center">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Booking Reference</div>
-            <div className="mt-1 text-xl font-bold font-mono">{ref ?? "—"}</div>
+            <div className="mt-1 text-xl font-bold font-mono break-all">{ref ?? "—"}</div>
           </div>
           {ref && <BookingDetails reference={ref} fallbackTotal={total} />}
         </div>

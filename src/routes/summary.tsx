@@ -204,12 +204,12 @@ function SummaryPage() {
 function Row({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-muted">
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="text-[11px] text-muted-foreground">{label}</div>
-        <div className="text-sm font-semibold">{value}</div>
+        <div className="text-sm font-semibold break-words">{value}</div>
       </div>
     </div>
   );

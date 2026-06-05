@@ -146,10 +146,10 @@ function BookingCard({ b, onOpen }: { b: any; onOpen: () => void }) {
           <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" /> {formatDateTimeUTC(b.starts_at)}
           </div>
-          <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="rounded-full bg-muted px-2 py-0.5 font-mono">{b.reference}</span>
-            <span className="font-semibold text-primary">{formatPence(b.total_pence)}</span>
-            {b.status === "cancelled" && <span className="text-destructive">Cancelled</span>}
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground overflow-hidden">
+            <span className="rounded-full bg-muted px-2 py-0.5 font-mono truncate max-w-[130px] shrink-0">{b.reference}</span>
+            <span className="font-semibold text-primary shrink-0">{formatPence(b.total_pence)}</span>
+            {b.status === "cancelled" && <span className="text-destructive shrink-0">Cancelled</span>}
           </div>
         </div>
       </div>
@@ -240,10 +240,10 @@ function DetailsModal({
 function Row({ icon, label, value, valueClass }: { icon: React.ReactNode; label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
         {icon} {label}
       </span>
-      <span className={`text-sm font-semibold capitalize ${valueClass ?? ""}`}>{value}</span>
+      <span className={`text-sm font-semibold capitalize text-right break-words max-w-[55%] ${valueClass ?? ""}`}>{value}</span>
     </div>
   );
 }

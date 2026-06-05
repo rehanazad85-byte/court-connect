@@ -178,9 +178,9 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
                         </button>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right max-w-[90px] shrink-0">
                       <div className="text-xs font-bold text-primary">{formatPence(b.total_pence)}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground">{b.reference}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground truncate">{b.reference}</div>
                       <div className={`mt-1 text-[10px] font-bold ${b.status === "cancelled" ? "text-destructive" : "text-foreground"}`}>
                         {b.status}
                       </div>
