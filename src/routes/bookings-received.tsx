@@ -1,15 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { ArrowLeft, Calendar, User } from "lucide-react";
+import { ArrowLeft, Calendar, User, X } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
 import { PendingScreen } from "@/components/PendingScreen";
 import { useAuth } from "@/hooks/use-auth";
 import { listVendorBookings } from "@/lib/vendor.functions";
+import { cancelBooking } from "@/lib/booking.functions";
 import { formatPence } from "@/lib/mock-data";
 import { formatDateTimeUTC } from "@/lib/date-utils";
+import { toast } from "sonner";
 
 type Filter = "today" | "upcoming" | "past" | "cancelled" | "all";
 
@@ -38,15 +40,20 @@ function BookingsReceivedGate() {
 function BookingsReceivedPage({ userId }: { userId: string }) {
   const search = Route.useSearch();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const activeFilter: Filter = search.filter ?? "all";
-  const fetch = useServerFn(listVendorBookings);
+  const fetchFn = useServerFn(listVendorBookings);
+  const cancelFn = useServerFn(cancelBooking);
   const { data, isLoading, error } = useQuery({
     queryKey: ["vendor-bookings", userId],
-    queryFn: () => fetch(),
+    queryFn: () => fetchFn(),
     staleTime: 0,
     refetchOnMount: "always",
     enabled: !!userId,
   });
+
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const now = Date.now();
   const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
@@ -75,6 +82,23 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
   const setFilter = (f: Filter) =>
     nav({ to: "/bookings-received", search: { filter: f }, replace: true });
 
+  const handleCancel = async (id: string) => {
+    setConfirmId(null);
+    setCancellingId(id);
+    try {
+      await cancelFn({ data: { id } });
+      toast.success("Booking cancelled");
+      await qc.invalidateQueries({ queryKey: ["vendor-bookings", userId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel booking");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const confirmBooking = confirmId ? all.find((b) => b.id === confirmId) : null;
+  const confirmVenue = confirmBooking ? venuesById.get(confirmBooking.venue_id) : null;
+
   return (
     <PhoneShell>
       <div className="px-5 pt-7">
@@ -84,8 +108,6 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
         <h1 className="mt-2 text-2xl font-bold">Bookings Received</h1>
         <p className="mt-1 text-sm text-muted-foreground">Bookings customers made at your venues.</p>
       </div>
-
-      
 
       <div className="px-5 pt-4 flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
@@ -124,10 +146,14 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
           <div className="space-y-2">
             {filtered.map((b) => {
               const v: any = venuesById.get(b.venue_id);
+              const isUpcoming = new Date(b.starts_at).getTime() > now;
+              const canCancel = b.status === "confirmed" && isUpcoming;
+              const isCancelling = cancellingId === b.id;
+
               return (
                 <div key={b.id} className="rounded-2xl bg-card p-3 shadow-soft">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
                       <Calendar className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -141,8 +167,18 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
                           {b.resources.map((r: any) => r.name).join(", ")}
                         </div>
                       )}
+                      {canCancel && (
+                        <button
+                          disabled={isCancelling}
+                          onClick={() => setConfirmId(b.id)}
+                          className="mt-2 inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-2.5 py-1 text-[11px] font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                        >
+                          <X className="h-3 w-3" />
+                          {isCancelling ? "Cancelling…" : "Cancel booking"}
+                        </button>
+                      )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <div className="text-xs font-bold text-primary">{formatPence(b.total_pence)}</div>
                       <div className="text-[10px] font-mono text-muted-foreground">{b.reference}</div>
                       <div className={`mt-1 text-[10px] font-bold ${b.status === "cancelled" ? "text-destructive" : "text-foreground"}`}>
@@ -156,7 +192,45 @@ function BookingsReceivedPage({ userId }: { userId: string }) {
           </div>
         )}
       </div>
+
+      {confirmId && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-8"
+          onClick={() => setConfirmId(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-bold">Cancel this booking?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Are you sure you want to cancel the booking at{" "}
+              <span className="font-semibold text-foreground">{(confirmVenue as any)?.name ?? "your venue"}</span>?
+              {confirmBooking && (
+                <>
+                  {" "}Scheduled for {formatDateTimeUTC(confirmBooking.starts_at)}.
+                </>
+              )}
+              <br />
+              The customer will see this booking as cancelled.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setConfirmId(null)}
+                className="flex h-11 flex-1 items-center justify-center rounded-xl border border-border text-sm font-medium"
+              >
+                Keep booking
+              </button>
+              <button
+                onClick={() => handleCancel(confirmId)}
+                className="flex h-11 flex-1 items-center justify-center rounded-xl bg-destructive text-sm font-bold text-destructive-foreground"
+              >
+                Yes, cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PhoneShell>
   );
 }
-
