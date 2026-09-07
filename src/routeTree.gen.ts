@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VenuesRouteImport } from './routes/venues'
 import { Route as VendorRouteImport } from './routes/vendor'
 import { Route as SummaryRouteImport } from './routes/summary'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -19,12 +20,19 @@ import { Route as ConfirmationRouteImport } from './routes/confirmation'
 import { Route as BookingsReceivedRouteImport } from './routes/bookings-received'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VenuesIndexRouteImport } from './routes/venues.index'
+import { Route as VenuesSlugRouteImport } from './routes/venues.$slug'
 import { Route as VenueVenueIdRouteImport } from './routes/venue.$venueId'
 import { Route as VendorVenuesRouteImport } from './routes/vendor.venues'
 import { Route as VendorDashboardRouteImport } from './routes/vendor.dashboard'
 import { Route as ActivityActivityRouteImport } from './routes/activity.$activity'
 import { Route as VenueVenueIdCourtsRouteImport } from './routes/venue.$venueId.courts'
 
+const VenuesRoute = VenuesRouteImport.update({
+  id: '/venues',
+  path: '/venues',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VendorRoute = VendorRouteImport.update({
   id: '/vendor',
   path: '/vendor',
@@ -75,6 +83,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VenuesIndexRoute = VenuesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => VenuesRoute,
+} as any)
+const VenuesSlugRoute = VenuesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => VenuesRoute,
+} as any)
 const VenueVenueIdRoute = VenueVenueIdRouteImport.update({
   id: '/venue/$venueId',
   path: '/venue/$venueId',
@@ -112,10 +130,13 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/summary': typeof SummaryRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/venues': typeof VenuesRouteWithChildren
   '/activity/$activity': typeof ActivityActivityRoute
   '/vendor/dashboard': typeof VendorDashboardRoute
   '/vendor/venues': typeof VendorVenuesRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
+  '/venues/$slug': typeof VenuesSlugRoute
+  '/venues/': typeof VenuesIndexRoute
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
 export interface FileRoutesByTo {
@@ -133,6 +154,8 @@ export interface FileRoutesByTo {
   '/vendor/dashboard': typeof VendorDashboardRoute
   '/vendor/venues': typeof VendorVenuesRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
+  '/venues/$slug': typeof VenuesSlugRoute
+  '/venues': typeof VenuesIndexRoute
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
 export interface FileRoutesById {
@@ -147,10 +170,13 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/summary': typeof SummaryRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/venues': typeof VenuesRouteWithChildren
   '/activity/$activity': typeof ActivityActivityRoute
   '/vendor/dashboard': typeof VendorDashboardRoute
   '/vendor/venues': typeof VendorVenuesRoute
   '/venue/$venueId': typeof VenueVenueIdRouteWithChildren
+  '/venues/$slug': typeof VenuesSlugRoute
+  '/venues/': typeof VenuesIndexRoute
   '/venue/$venueId/courts': typeof VenueVenueIdCourtsRoute
 }
 export interface FileRouteTypes {
@@ -166,10 +192,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/summary'
     | '/vendor'
+    | '/venues'
     | '/activity/$activity'
     | '/vendor/dashboard'
     | '/vendor/venues'
     | '/venue/$venueId'
+    | '/venues/$slug'
+    | '/venues/'
     | '/venue/$venueId/courts'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -187,6 +216,8 @@ export interface FileRouteTypes {
     | '/vendor/dashboard'
     | '/vendor/venues'
     | '/venue/$venueId'
+    | '/venues/$slug'
+    | '/venues'
     | '/venue/$venueId/courts'
   id:
     | '__root__'
@@ -200,10 +231,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/summary'
     | '/vendor'
+    | '/venues'
     | '/activity/$activity'
     | '/vendor/dashboard'
     | '/vendor/venues'
     | '/venue/$venueId'
+    | '/venues/$slug'
+    | '/venues/'
     | '/venue/$venueId/courts'
   fileRoutesById: FileRoutesById
 }
@@ -218,12 +252,20 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SummaryRoute: typeof SummaryRoute
   VendorRoute: typeof VendorRouteWithChildren
+  VenuesRoute: typeof VenuesRouteWithChildren
   ActivityActivityRoute: typeof ActivityActivityRoute
   VenueVenueIdRoute: typeof VenueVenueIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/venues': {
+      id: '/venues'
+      path: '/venues'
+      fullPath: '/venues'
+      preLoaderRoute: typeof VenuesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vendor': {
       id: '/vendor'
       path: '/vendor'
@@ -294,6 +336,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/venues/': {
+      id: '/venues/'
+      path: '/'
+      fullPath: '/venues/'
+      preLoaderRoute: typeof VenuesIndexRouteImport
+      parentRoute: typeof VenuesRoute
+    }
+    '/venues/$slug': {
+      id: '/venues/$slug'
+      path: '/$slug'
+      fullPath: '/venues/$slug'
+      preLoaderRoute: typeof VenuesSlugRouteImport
+      parentRoute: typeof VenuesRoute
+    }
     '/venue/$venueId': {
       id: '/venue/$venueId'
       path: '/venue/$venueId'
@@ -345,6 +401,19 @@ const VendorRouteChildren: VendorRouteChildren = {
 const VendorRouteWithChildren =
   VendorRoute._addFileChildren(VendorRouteChildren)
 
+interface VenuesRouteChildren {
+  VenuesSlugRoute: typeof VenuesSlugRoute
+  VenuesIndexRoute: typeof VenuesIndexRoute
+}
+
+const VenuesRouteChildren: VenuesRouteChildren = {
+  VenuesSlugRoute: VenuesSlugRoute,
+  VenuesIndexRoute: VenuesIndexRoute,
+}
+
+const VenuesRouteWithChildren =
+  VenuesRoute._addFileChildren(VenuesRouteChildren)
+
 interface VenueVenueIdRouteChildren {
   VenueVenueIdCourtsRoute: typeof VenueVenueIdCourtsRoute
 }
@@ -368,9 +437,20 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SummaryRoute: SummaryRoute,
   VendorRoute: VendorRouteWithChildren,
+  VenuesRoute: VenuesRouteWithChildren,
   ActivityActivityRoute: ActivityActivityRoute,
   VenueVenueIdRoute: VenueVenueIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
