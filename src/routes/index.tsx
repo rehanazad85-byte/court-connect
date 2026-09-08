@@ -45,6 +45,7 @@ function Home() {
               <span className="text-lg font-bold tracking-tight">Knox</span>
             </div>
             <Link to="/profile" aria-label="Menu"><Menu className="h-6 w-6" /></Link>
+            <Link to="/venues" className="text-xs font-semibold text-primary">Venue directory</Link>P
           </div>
 
           <p className="mt-10 text-[11px] font-semibold tracking-[0.2em] text-primary">PLAY MORE. BOOK EASY.</p>
