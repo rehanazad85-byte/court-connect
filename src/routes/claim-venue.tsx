@@ -9,6 +9,7 @@ export const Route = createFileRoute("/claim-venue")({
 
 function ClaimVenuePage() {
   const [submitted, setSubmitted] = useState(false);
+  const venueName = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("venue") ?? "" : "";
 
   if (submitted) {
     return (
@@ -65,6 +66,7 @@ function ClaimVenuePage() {
             <span className="text-sm font-semibold">Venue name</span>
             <input
               name="venue"
+          defaultValue={venueName}
               required
               className="mt-2 w-full rounded-xl border px-4 py-3"
               placeholder="Your venue name"
