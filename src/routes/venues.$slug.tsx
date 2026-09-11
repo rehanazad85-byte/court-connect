@@ -49,12 +49,7 @@ export const Route = createFileRoute("/venues/$slug")({
 function VenueProfilePage() {
   const venue = Route.useLoaderData();
 
-  const claimSubject = encodeURIComponent(`Claim Venue Profile - ${venue.name}`);
-  const claimBody = encodeURIComponent(
-    `Hi Nock Sports,\n\nI would like to claim this venue profile:\n\nVenue name: ${venue.name}\nMy name: \nMy role at the venue: \nMy contact number: \nMessage: \n\nThanks.`
-  );
-  const claimHref = `mailto:hello@nocksports.co.uk?subject=${claimSubject}&body=${claimBody}`;
-
+ const claimHref = `/claim-venue?venue=${encodeURIComponent(venue.name)}`;
   return (
     <PhoneShell>
       <div className="px-5 pt-6 pb-4">

@@ -17,6 +17,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as ConfirmationRouteImport } from './routes/confirmation'
+import { Route as ClaimVenueRouteImport } from './routes/claim-venue'
 import { Route as BookingsReceivedRouteImport } from './routes/bookings-received'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as IndexRouteImport } from './routes/index'
@@ -66,6 +67,11 @@ const FavoritesRoute = FavoritesRouteImport.update({
 const ConfirmationRoute = ConfirmationRouteImport.update({
   id: '/confirmation',
   path: '/confirmation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClaimVenueRoute = ClaimVenueRouteImport.update({
+  id: '/claim-venue',
+  path: '/claim-venue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookingsReceivedRoute = BookingsReceivedRouteImport.update({
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookings': typeof BookingsRoute
   '/bookings-received': typeof BookingsReceivedRoute
+  '/claim-venue': typeof ClaimVenueRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookings': typeof BookingsRoute
   '/bookings-received': typeof BookingsReceivedRoute
+  '/claim-venue': typeof ClaimVenueRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bookings': typeof BookingsRoute
   '/bookings-received': typeof BookingsReceivedRoute
+  '/claim-venue': typeof ClaimVenueRoute
   '/confirmation': typeof ConfirmationRoute
   '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookings'
     | '/bookings-received'
+    | '/claim-venue'
     | '/confirmation'
     | '/favorites'
     | '/login'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookings'
     | '/bookings-received'
+    | '/claim-venue'
     | '/confirmation'
     | '/favorites'
     | '/login'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookings'
     | '/bookings-received'
+    | '/claim-venue'
     | '/confirmation'
     | '/favorites'
     | '/login'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookingsRoute: typeof BookingsRoute
   BookingsReceivedRoute: typeof BookingsReceivedRoute
+  ClaimVenueRoute: typeof ClaimVenueRoute
   ConfirmationRoute: typeof ConfirmationRoute
   FavoritesRoute: typeof FavoritesRoute
   LoginRoute: typeof LoginRoute
@@ -313,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/confirmation'
       fullPath: '/confirmation'
       preLoaderRoute: typeof ConfirmationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/claim-venue': {
+      id: '/claim-venue'
+      path: '/claim-venue'
+      fullPath: '/claim-venue'
+      preLoaderRoute: typeof ClaimVenueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bookings-received': {
@@ -430,6 +450,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookingsRoute: BookingsRoute,
   BookingsReceivedRoute: BookingsReceivedRoute,
+  ClaimVenueRoute: ClaimVenueRoute,
   ConfirmationRoute: ConfirmationRoute,
   FavoritesRoute: FavoritesRoute,
   LoginRoute: LoginRoute,

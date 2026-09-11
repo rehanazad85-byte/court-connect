@@ -137,11 +137,7 @@ function VenuesPage() {
 }
 
 function VenueCard({ venue }: { venue: (typeof directoryVenues)[number] }) {
-  const claimSubject = encodeURIComponent(`Claim Venue Profile - ${venue.name}`);
-  const claimBody = encodeURIComponent(
-    `Hi Nock Sports,\n\nI would like to claim this venue profile:\n\nVenue name: ${venue.name}\nMy name: \nMy role at the venue: \nMy contact number: \nMessage: \n\nThanks.`
-  );
-  const claimHref = `mailto:hello@nocksports.co.uk?subject=${claimSubject}&body=${claimBody}`;
+ const claimHref = `/claim-venue?venue=${encodeURIComponent(venue.name)}`;
 
   return (
     <div className="rounded-2xl bg-card p-4 shadow-soft">
