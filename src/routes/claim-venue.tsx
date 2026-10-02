@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
+import { submitVenueClaim } from "@/lib/venue-claims.functions";
 
 export const Route = createFileRoute("/claim-venue")({
   component: ClaimVenuePage,
@@ -57,10 +58,23 @@ function ClaimVenuePage() {
 
         <form
           className="mt-6 space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
+          onSubmit={async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(e.currentTarget);
+
+          await submitVenueClaim({
+            data: {
+              venueName: String(formData.get("venue") ?? ""),
+              claimantName: String(formData.get("name") ?? ""),
+              email: String(formData.get("email") ?? ""),
+              phone: String(formData.get("phone") ?? ""),
+              role: String(formData.get("role") ?? ""),
+            },
+          });
+
+          setSubmitted(true);
+        }}
         >
           <label className="block">
             <span className="text-sm font-semibold">Venue name</span>
