@@ -57,22 +57,22 @@ function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-10">
-        <div className="flex items-center justify-between md:justify-center">
-          <h2 className="text-lg font-bold">Popular activities</h2>
+      <section className="mx-auto max-w-6xl px-5 pt-9 md:px-8 md:pt-12">
+        <div className="mb-5 text-center">
+          <h2 className="text-xl font-bold md:text-2xl">Find your next game</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Explore courts, tables and venues for your favourite sports.</p>
         </div>
-        <div className="mt-3 -mx-5 overflow-x-auto px-5 md:mx-0 md:px-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex gap-3 pb-2 md:justify-center">
-            {activities.map((a) => (
-              <Link key={a.id} to="/activity/$activity" params={{ activity: a.id }} className="group w-[110px] shrink-0">
-                <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
-                  <img src={a.image} alt={a.name} width={600} height={600} loading="lazy" className="h-full w-full object-cover transition group-active:scale-95" />
-                </div>
-                <div className="mt-2 text-[13px] font-semibold leading-tight">{a.name}</div>
-                <div className="text-[11px] text-muted-foreground">{a.tagline}</div>
-              </Link>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
+          {activities.map((a) => (
+            <Link key={a.id} to="/activity/$activity" params={{ activity: a.id }} className="group relative isolate block aspect-[4/5] overflow-hidden rounded-2xl bg-ink shadow-soft transition duration-200 hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:aspect-[4/4.5]">
+              <img src={a.image} alt={a.name} width={600} height={750} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/5" />
+              <div className="absolute inset-x-0 bottom-0 p-4 text-white md:p-5">
+                <h3 className="text-lg font-bold leading-tight md:text-xl">{a.name}</h3>
+                <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-white/90 md:text-sm">Explore venues <span aria-hidden="true">→</span></span>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 
