@@ -33,9 +33,6 @@ export const directoryVenues: DirectoryVenue[] = [
     id: "fishley-park", name: "Fishley Park", sport: "snooker", sportLabel: "Snooker", city: "Walsall", address: "Fishley Lane, Walsall WS3 3PZ", description: "Golf facilities and bar with snooker, pool and darts.",
   },
   {
-    id: "the-padel-inn", name: "The Padel Inn", sport: "padel", sportLabel: "Padel Tennis", city: "West Bromwich", address: "Units 13–15, The Great Bridge Centre, Charles Street, West Bromwich B70 0BF", description: "Indoor padel courts in Great Bridge.",
-  },
-  {
     id: "pickwick-padel", name: "Pickwick Cricket & Padel Club", sport: "padel", sportLabel: "Padel Tennis", city: "Birmingham", address: "1 Park Lane, Birmingham B21 8LE", description: "Indoor padel and cricket sports venue.",
   },
   {
