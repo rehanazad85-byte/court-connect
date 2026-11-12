@@ -179,7 +179,7 @@ function AuthSync() {
             qc.clear();
             bookingStore.reset();
             lastUserIdRef.current = null;
-            window.sessionStorage.removeItem("nocksports_auth_redirect");
+            window.sessionStorage.removeItem("knox_auth_redirect");
             if (window.location.pathname !== "/") {
               await router.navigate({ to: "/", replace: true });
             }
@@ -187,10 +187,10 @@ function AuthSync() {
           }
           if (event === "SIGNED_IN" && session?.user) {
             const path = window.location.pathname;
-            const stored = window.sessionStorage.getItem("nocksports_auth_redirect");
+            const stored = window.sessionStorage.getItem("knox_auth_redirect");
             // Only redirect from auth pages or when an explicit redirect was stored.
             if (stored || path === "/login" || path === "/signup") {
-              window.sessionStorage.removeItem("nocksports_auth_redirect");
+              window.sessionStorage.removeItem("knox_auth_redirect");
               const { resolveLandingTarget } = await import("@/lib/auth-redirect");
               const target = await resolveLandingTarget(stored);
               const here = window.location.pathname + window.location.search;
