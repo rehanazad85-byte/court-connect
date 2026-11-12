@@ -7,6 +7,7 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { activities, formatPence, ACTIVITY_LABELS } from "@/lib/mock-data";
 import { listVenues } from "@/lib/booking.functions";
 import { resourceLabel } from "@/lib/resource-labels";
+import { directoryVenues } from "@/lib/directory-venues";
 
 const allVenuesQuery = queryOptions({
   queryKey: ["venues", "all"],
@@ -109,6 +110,38 @@ function Home() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="mx-auto max-w-6xl px-5 pb-12 md:px-8">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">Explore more local venues</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Discover sports venues around the West Midlands. Listings marked unclaimed cannot yet be booked here.</p>
+          </div>
+          <Link to="/venues" className="text-sm font-semibold text-primary">View full directory →</Link>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {directoryVenues.filter((v) => ["Walsall", "Bloxwich", "Great Wyrley", "Willenhall", "West Bromwich", "Wolverhampton", "Dudley", "Birmingham"].includes(v.city)).slice(0, 9).map((venue) => {
+            const activityImage = activities.find((a) => a.id === venue.sport)?.image;
+            return (
+              <Link key={venue.id} to="/venues/$slug" params={{ slug: venue.id }} className="overflow-hidden rounded-2xl border bg-card shadow-soft transition hover:shadow-md">
+                <div className="relative aspect-[16/9] overflow-hidden bg-muted">
+                  {activityImage && <img src={activityImage} alt={`${venue.sportLabel} illustration — not a photo of ${venue.name}`} loading="lazy" className="h-full w-full object-cover" />}
+                  <span className="absolute bottom-2 left-2 rounded-md bg-background/90 px-2 py-1 text-[10px] font-medium">Illustrative image</span>
+                </div>
+                <div className="p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <h3 className="font-bold leading-snug">{venue.name}</h3>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">Unclaimed</span>
+                  </div>
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{venue.city} · {venue.sportLabel}</p>
+                  <p className="mt-3 text-xs font-semibold text-primary">View details →</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">Directory listings are independent, not endorsements or booking partnerships. Venue owners can claim their profiles.</p>
       </section>
     </PhoneShell>
   );
