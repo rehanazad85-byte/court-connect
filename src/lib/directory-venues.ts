@@ -21,6 +21,39 @@ export interface DirectoryVenue {
 
 export const directoryVenues: DirectoryVenue[] = [
   {
+    id: "landywood-snooker", name: "Landywood Snooker Club", sport: "snooker", sportLabel: "Snooker", city: "Great Wyrley", address: "Holly Lane, Great Wyrley, Walsall WS6 6AJ", description: "Snooker and pool club in Great Wyrley.",
+  },
+  {
+    id: "old-hall-snooker", name: "Old Hall Snooker Club", sport: "snooker", sportLabel: "Snooker", city: "Bloxwich", address: "Revival Street, Bloxwich, Walsall WS3 3HJ", description: "Snooker, pool and darts club in Bloxwich.",
+  },
+  {
+    id: "jds-snooker", name: "JD's Snooker & Pool Hall", sport: "snooker", sportLabel: "Snooker", city: "Willenhall", address: "Somerford Place, Willenhall WV13 3DZ", description: "Snooker and pool venue in Willenhall.",
+  },
+  {
+    id: "fishley-park", name: "Fishley Park", sport: "snooker", sportLabel: "Snooker", city: "Walsall", address: "Fishley Lane, Walsall WS3 3PZ", description: "Golf facilities and bar with snooker, pool and darts.",
+  },
+  {
+    id: "pickwick-padel", name: "Pickwick Cricket & Padel Club", sport: "padel", sportLabel: "Padel Tennis", city: "Birmingham", address: "1 Park Lane, Birmingham B21 8LE", description: "Indoor padel and cricket sports venue.",
+  },
+  {
+    id: "padel-warehouse-52", name: "Padel Warehouse 52", sport: "padel", sportLabel: "Padel Tennis", city: "Wolverhampton", address: "Unit 11, G5 Industrial Park, Wolverhampton WV4 6FG", description: "Indoor padel venue in Wolverhampton.",
+  },
+  {
+    id: "padel-7-dudley", name: "Padel 7", sport: "padel", sportLabel: "Padel Tennis", city: "Dudley", address: "Leyland Drive, Dudley DY2 7DQ", description: "Indoor padel courts in Dudley.",
+  },
+  {
+    id: "darts-social-walsall", name: "Darts Social Birmingham Walsall", sport: "darts", sportLabel: "Darts", city: "Walsall", address: "Tempus Drive, Walsall WS2 8TJ", description: "Interactive darts experience at Village Hotel Walsall.",
+  },
+  {
+    id: "the-archers-walsall", name: "The Archers", sport: "darts", sportLabel: "Darts", city: "Walsall", address: "Thorncroft Way, Walsall WS5 4EF", description: "Walsall pub offering pool and darts.",
+  },
+  {
+    id: "q-bar-walsall-wood", name: "Q Bar", sport: "snooker", sportLabel: "Snooker", city: "Walsall Wood", address: "146 Walsall Road, Walsall Wood WS9 9AJ", description: "Snooker and pool venue in Walsall Wood.",
+  },
+  {
+    id: "midlands-snooker-bilston", name: "Midlands Snooker", sport: "snooker", sportLabel: "Snooker", city: "Bilston", address: "Bilston Key Industrial Estate, Oxford Street, Bilston WV14 7DW", description: "Snooker and pool venue in Bilston.",
+  },
+  {
     id: "core-padel-tyseley",
     name: "Core Padel Tyseley",
     sport: "padel",

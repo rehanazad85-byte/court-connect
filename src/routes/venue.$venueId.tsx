@@ -30,7 +30,7 @@ export const Route = createFileRoute("/venue/$venueId")({
   validateSearch: venueSearchSchema,
   head: () => ({
     meta: [
-      { title: "Select date & time — Knox" },
+      { title: "Select date & time — NockSports" },
       { name: "description", content: "Pick your preferred date and time with real-time availability." },
     ],
   }),
@@ -168,7 +168,7 @@ function VenuePage() {
 
       <div className="px-5">
         {venue.cover_image && (
-          <img src={venue.cover_image} alt={venue.name} width={800} height={600} loading="eager" className="aspect-[16/10] w-full rounded-2xl object-cover" />
+          <img src={venue.cover_image} alt={venue.name} width={800} height={600} loading="eager" className="aspect-[16/10] w-full rounded-2xl object-cover md:aspect-[21/9] md:max-h-[380px]" />
         )}
         {venue.description && <p className="mt-3 text-sm text-muted-foreground">{venue.description}</p>}
       </div>
