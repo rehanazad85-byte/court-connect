@@ -22,7 +22,7 @@ function NotFoundComponent() {
         <h1 className="text-7xl font-bold">404</h1>
         <p className="mt-3 text-sm text-muted-foreground">This page doesn't exist.</p>
         <Link to="/" className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
-          Back to Knox
+          Back to NockSports
         </Link>
       </div>
     </div>
@@ -118,10 +118,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Knox — Book Padel, Snooker, Pool & More" },
+      { title: "NockSports — Book Padel, Snooker, Pool & More" },
       { name: "description", content: "Instant bookings for padel courts, snooker tables, pool, darts and golf simulators. Real-time availability. Play your game, your way." },
       { name: "theme-color", content: "#0b1220" },
-      { property: "og:title", content: "Knox — Book recreational venues" },
+      { property: "og:title", content: "NockSports — Book recreational venues" },
       { property: "og:description", content: "Real-time availability for padel, snooker, pool, darts and more." },
       { property: "og:type", content: "website" },
     ],
@@ -179,7 +179,7 @@ function AuthSync() {
             qc.clear();
             bookingStore.reset();
             lastUserIdRef.current = null;
-            window.sessionStorage.removeItem("knox_auth_redirect");
+            window.sessionStorage.removeItem("nocksports_auth_redirect");
             if (window.location.pathname !== "/") {
               await router.navigate({ to: "/", replace: true });
             }
@@ -187,10 +187,10 @@ function AuthSync() {
           }
           if (event === "SIGNED_IN" && session?.user) {
             const path = window.location.pathname;
-            const stored = window.sessionStorage.getItem("knox_auth_redirect");
+            const stored = window.sessionStorage.getItem("nocksports_auth_redirect");
             // Only redirect from auth pages or when an explicit redirect was stored.
             if (stored || path === "/login" || path === "/signup") {
-              window.sessionStorage.removeItem("knox_auth_redirect");
+              window.sessionStorage.removeItem("nocksports_auth_redirect");
               const { resolveLandingTarget } = await import("@/lib/auth-redirect");
               const target = await resolveLandingTarget(stored);
               const here = window.location.pathname + window.location.search;
