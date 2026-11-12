@@ -52,16 +52,16 @@ function Home() {
           <h1 className="mt-2 text-[34px] md:text-5xl font-bold leading-[1.05]">Book Padel<br />Courts,<br />Snooker Tables<br />&amp; More</h1>
           <p className="mt-3 text-sm text-white/70">Instant bookings.<br />Real-time availability.<br />Play your game, your way.</p>
 
-          <SearchPanel />
+          <div className="md:flex md:justify-center"><SearchPanel /></div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-10">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between md:justify-center">
           <h2 className="text-lg font-bold">Popular activities</h2>
         </div>
         <div className="mt-3 -mx-5 overflow-x-auto px-5 md:mx-0 md:px-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex gap-3 pb-2">
+          <div className="flex gap-3 pb-2 md:justify-center">
             {activities.map((a) => (
               <Link key={a.id} to="/activity/$activity" params={{ activity: a.id }} className="group w-[110px] shrink-0">
                 <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
@@ -76,14 +76,14 @@ function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-5 pt-6 pb-8 md:px-8 md:pt-10">
-        <h2 className="text-lg font-bold">Featured venues</h2>
+        <h2 className="text-lg font-bold md:text-center">Featured venues</h2>
         {featured.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed p-6 text-center">
             <p className="text-sm text-muted-foreground">No venues yet.</p>
             <Link to="/vendor" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">List your venue</Link>
           </div>
         ) : (
-          <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className={`mt-3 grid gap-4 ${featured.length === 1 ? "mx-auto max-w-sm" : featured.length === 2 ? "mx-auto max-w-3xl md:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3"}`}>
             {featured.map((v) => (
               <Link key={v.id} to="/venue/$venueId" params={{ venueId: v.id }} className="block overflow-hidden rounded-2xl bg-card shadow-soft transition active:scale-[.99]">
                 <div className="relative">
@@ -140,7 +140,7 @@ function SearchPanel() {
   const activityLabel = ACTIVITY_LABELS[activity] ?? activity;
 
   return (
-    <form onSubmit={onSubmit} className="mt-5 max-w-xl rounded-2xl bg-card text-card-foreground shadow-pop">
+    <form onSubmit={onSubmit} className="mt-5 w-full max-w-xl rounded-2xl bg-card text-card-foreground shadow-pop">
       <FieldRow icon={MessageCircle} label="What are you looking for?" value={activityLabel}>
         <select
           aria-label="Activity"
