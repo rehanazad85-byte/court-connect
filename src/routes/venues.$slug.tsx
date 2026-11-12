@@ -116,7 +116,7 @@ function VenueProfilePage() {
 
         <a
           href={claimHref}
-          className="flex h-12 w-full items-center justify-center rounded-xl border-2 border-primary text-sm font-bold text-primary transition active:scale-[.99]"
+          className="inline-flex min-h-10 items-center justify-center self-start rounded-lg border border-primary px-5 py-2 text-sm font-semibold text-primary transition hover:bg-primary/5 active:scale-[.99]"
         >
           Claim this venue →
         </a>
