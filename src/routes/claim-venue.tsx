@@ -132,7 +132,7 @@ function ClaimVenuePage() {
 
           <button
             type="submit"
-            className="w-full rounded-full bg-primary px-5 py-4 font-bold text-primary-foreground"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
           >
             Submit venue claim
           </button>
