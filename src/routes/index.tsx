@@ -16,7 +16,7 @@ const allVenuesQuery = queryOptions({
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Knox — Book Padel, Snooker, Pool & More" },
+      { title: "NockSports — Book Padel, Snooker, Pool & More" },
       { name: "description", content: "Instant bookings, real-time availability. Play your game, your way." },
     ],
   }),
@@ -38,29 +38,29 @@ function Home() {
       <section className="relative overflow-hidden bg-ink text-ink-foreground">
         <img src={heroImg} alt="Padel player at sunset" width={1024} height={1280} className="absolute inset-0 h-full w-full object-cover opacity-60" />
         <div className="absolute inset-0 bg-gradient-to-b from-ink/40 via-ink/60 to-ink" />
-        <div className="relative px-5 pt-5 pb-6">
-          <div className="flex items-center justify-between">
+        <div className="relative mx-auto max-w-6xl px-5 pt-5 pb-6 md:px-8 md:pt-8 md:pb-12">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <KnoxMark />
-              <span className="text-lg font-bold tracking-tight">Knox</span>
+              <NockSportsMark />
+              <span className="text-lg font-bold tracking-tight">NockSports</span>
             </div>
             <Link to="/profile" aria-label="Menu"><Menu className="h-6 w-6" /></Link>
-            <Link to="/venues" className="text-xs font-semibold text-primary">Venue directory</Link>P
+            <Link to="/venues" className="text-xs font-semibold text-primary">Venue directory</Link>
           </div>
 
-          <p className="mt-10 text-[11px] font-semibold tracking-[0.2em] text-primary">PLAY MORE. BOOK EASY.</p>
-          <h1 className="mt-2 text-[34px] font-bold leading-[1.05]">Book Padel<br />Courts,<br />Snooker Tables<br />&amp; More</h1>
+          <p className="mt-10 md:mt-16 text-[11px] font-semibold tracking-[0.2em] text-primary">PLAY MORE. BOOK EASY.</p>
+          <h1 className="mt-2 text-[34px] md:text-5xl font-bold leading-[1.05]">Book Padel<br />Courts,<br />Snooker Tables<br />&amp; More</h1>
           <p className="mt-3 text-sm text-white/70">Instant bookings.<br />Real-time availability.<br />Play your game, your way.</p>
 
           <SearchPanel />
         </div>
       </section>
 
-      <section className="px-5 pt-6">
+      <section className="mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-10">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Popular activities</h2>
         </div>
-        <div className="mt-3 -mx-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-3 -mx-5 overflow-x-auto px-5 md:mx-0 md:px-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex gap-3 pb-2">
             {activities.map((a) => (
               <Link key={a.id} to="/activity/$activity" params={{ activity: a.id }} className="group w-[110px] shrink-0">
@@ -75,7 +75,7 @@ function Home() {
         </div>
       </section>
 
-      <section className="px-5 pt-6 pb-8">
+      <section className="mx-auto max-w-6xl px-5 pt-6 pb-8 md:px-8 md:pt-10">
         <h2 className="text-lg font-bold">Featured venues</h2>
         {featured.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed p-6 text-center">
@@ -83,7 +83,7 @@ function Home() {
             <Link to="/vendor" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">List your venue</Link>
           </div>
         ) : (
-          <div className="mt-3 space-y-4">
+          <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {featured.map((v) => (
               <Link key={v.id} to="/venue/$venueId" params={{ venueId: v.id }} className="block overflow-hidden rounded-2xl bg-card shadow-soft transition active:scale-[.99]">
                 <div className="relative">
@@ -140,7 +140,7 @@ function SearchPanel() {
   const activityLabel = ACTIVITY_LABELS[activity] ?? activity;
 
   return (
-    <form onSubmit={onSubmit} className="mt-5 rounded-2xl bg-card text-card-foreground shadow-pop">
+    <form onSubmit={onSubmit} className="mt-5 max-w-xl rounded-2xl bg-card text-card-foreground shadow-pop">
       <FieldRow icon={MessageCircle} label="What are you looking for?" value={activityLabel}>
         <select
           aria-label="Activity"
@@ -225,7 +225,7 @@ function formatDateLabel(iso: string) {
   return `${DOW_LABELS[dt.getUTCDay()]} ${dt.getUTCDate()} ${MON_LABELS[dt.getUTCMonth()]}`;
 }
 
-function KnoxMark() {
+function NockSportsMark() {
   return (
     <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 4v16M5 12l8-8M5 12l8 8" />
